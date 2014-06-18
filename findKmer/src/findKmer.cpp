@@ -12,6 +12,8 @@
 #include <math.h>
 #include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
 #include <stdlib.h> //malloc is in this.
+#define MAX_LINE 1001
+#define DEBUG(x) x
 
 using namespace std;
 
@@ -27,21 +29,25 @@ int char2int(char base);
 int main(int argc, char *argv[]) {
 	FILE *fp = NULL;
 	char fileName[] = "homo_sapiensupstream.fas";
-	char buffer[1000]; //todo commandline arg
+	char buffer[MAX_LINE]; //todo commandline arg
 	char base;
+	DEBUG(int counter = 0);
 	cout << "!!!Find The KMER!!!" << endl; // prints !!!Hello World!!!
 
-
-	if ((fp = fopen("text.txt", "r")) == NULL) {
+	if ((fp = fopen(fileName, "r")) == NULL) {
 		printf("File could not be opened. Ending program.\n");
 		return (-1);
 	}
+	while (fgets(buffer, MAX_LINE, fp) != NULL DEBUG(&& counter != 5)) {
+		DEBUG(printf("%s", buffer));
+		DEBUG(counter++);
+	}
+
 
 	char2int(base);
 
-
 	fclose(fp);
-	printf("End of program\n");
+	DEBUG(printf("End of program\n"));
 	return 0;
 }
 
