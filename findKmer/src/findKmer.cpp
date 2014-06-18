@@ -3,7 +3,7 @@
 // Author      : Kalen Brown and Gus Thies
 // Version     :
 // Copyright   : Do not copy
-// Description : This code is being scrapped and replaced by Becchi's code.
+// Description : This code is being scrapped and replaced by Becchi's code .
 //============================================================================
 
 #include <iostream>
