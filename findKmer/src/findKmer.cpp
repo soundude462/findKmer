@@ -1,11 +1,44 @@
+/*
+ * Copyright (c) 2007 Michela Becchi and Washington University in St. Louis.
+ * All rights reserved
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *    1. Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *    3. The name of the author or Washington University may not be used
+ *       to endorse or promote products derived from this source code
+ *       without specific prior written permission.
+ *    4. Conditions of any other entities that contributed to this are also
+ *       met. If a copyright notice is present from another entity, it must
+ *       be maintained in redistributions of the source code.
+ *
+ * THIS INTELLECTUAL PROPERTY (WHICH MAY INCLUDE BUT IS NOT LIMITED TO SOFTWARE,
+ * FIRMWARE, VHDL, etc) IS PROVIDED BY  THE AUTHOR AND WASHINGTON UNIVERSITY
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR WASHINGTON UNIVERSITY
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS INTELLECTUAL PROPERTY, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * */
+
 //============================================================================
 // Name        : findKmer.cpp
 // Author      : Kalen Brown and Gus Thies
 // Version     :
 // Copyright   : Do not copy
-// Description : This code is being scrapped and replaced by Becchi's code.
+// Description : This code uses k which is a ones count for the length of a sequence to be found in DNA.
 //============================================================================
-
 using namespace std;
 #include <iostream>
 #include <stdio.h>
@@ -13,16 +46,17 @@ using namespace std;
 #include <math.h>
 #include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
 #include <stdlib.h> //malloc is in this.
-#include "stdinc.h"
+#include "stdinc.h" //from Dr. Becchi's code to help reuse some functions.
 // basic file operations
 #include <fstream>
 
 // Data structure for a tree.
-struct node {
+struct node_t {
 	int base;
-	struct node *nextBasePtr[4];
+	struct node_t *nextBasePtr[4];
 	unsigned int counter;
 };
+
 //enumeration of possible bases in alphabetical order.
 enum Base {
 	A = 0, C = 1, G = 2, T = 3
@@ -30,20 +64,18 @@ enum Base {
 #define MAX_LINE 1001
 #define DEBUG(x) x
 
-void *allocate_array(int size, size_t element_size)
-{
-	void *mem = malloc( size * element_size );
-	if ( ! mem ){
+void *allocate_array(int size, size_t element_size) {
+	void *mem = malloc(size * element_size);
+	if (!mem) {
 		printf("allocate_array():: memory allocation failed");
 		exit(1);
 	}
 	return mem;
 }
 
-void *reallocate_array( void *array, int size, size_t element_size)
-{
-	void *new_array = realloc( array, element_size * size );
-	if ( ! new_array ){
+void *reallocate_array(void *array, int size, size_t element_size) {
+	void *new_array = realloc(array, element_size * size);
+	if (!new_array) {
 		printf("reallocate_array():: memory reallocation failed");
 		exit(1);
 	}
@@ -78,63 +110,62 @@ void file_reader(FILE *file, int k) {
 
 		buffer[currentLocation];
 	}
-
 }
 
-/*
- * Function reads in a pointer to an integer array, the size of the array, and an integer.
- * The function shifts the contents of the array to the left and inserts a new element at the tail.
- */
-
-/*
- * Reads in a pointer to an integer array, the size of the array.
- * Manages the tree to hold the string of integers
- *
- */
-
-/*
- * increment the counter for then odes as we step on it.
- */
-void enter_the_node(node* node) {
-	node->counter++;
-}
-
-/*
- * Checks to see if there is a branch in that direction.
- * return true if the branch exists, else return false
- */
-bool node_branch_check(node* node, int base) {
-	if(node->nextBasePtr[base] == NULL) {
-		return false;
-	}
-	return true;
-
-}
 /*
  * Creates a tree node.
  * Brings in the base of the node to create
  *
  */
-node* node_create(int base) {
-	node* mem = NULL;
-	mem = (node*) malloc(sizeof(node));
-	allocate_array(1,sizeof(node));
-	mem->base = base;
-	mem->counter = 1;
-	mem->nextBasePtr[0] = NULL;
-	mem->nextBasePtr[1] = NULL;
-	mem->nextBasePtr[2] = NULL;
-	mem->nextBasePtr[3] = NULL;
-	return mem;
+node_t* node_create(int base) {
+	node_t* node = (node_t*) allocate_array(1, sizeof(node_t));
+	node->base = base;
+	node->counter = 1;
+	node->nextBasePtr[0] = NULL;
+	node->nextBasePtr[1] = NULL;
+	node->nextBasePtr[2] = NULL;
+	node->nextBasePtr[3] = NULL;
+	return node;
 }
 /*
- * Adds a branch
+ * Adds a branch if one doesn't already exist.
+ * Increments the counter for the node we are going to step into.
+ * Returns the pointer to the next node.
  */
-void node_branch_create(node* stumpNode, int base) {
-	stumpNode->nextBasePtr[base] = node_create(base);
+node_t* node_branch_enter(node_t* node, int base) {
+	DEBUG(printf("..node_branch_enter for base %d\n", base));
+	if (node->nextBasePtr[base] == NULL) {
+		DEBUG(printf("***Creating Node.\n"));
+		node->nextBasePtr[base] = node_create(base);
+	} else {
+		node->nextBasePtr[base]->counter++;
+		DEBUG(printf("+++Incrementing counter to %d.\n",node->nextBasePtr[base]->counter));
+	}
+	DEBUG(printf("..returning next base pointer.\n"));
+	return node->nextBasePtr[base];
 }
 
-
+/*
+ * Brings in a pointer to head of the tree, an integer array and the size k of the array
+ * Checks to see if the array exists, and if the tree already exists.
+ * Breaks if array does not exist, but creates the head node if tree does not exist.
+ * Traverses the array and creates the tree based on what it finds.
+ *
+ */
+node_t* tree_create(node_t* head, int* array, int k) {
+	if (array != NULL) {
+		if (head == NULL) {
+			DEBUG(printf("-Creating the head of the tree!\n"));
+			head = node_create('H');
+		}
+		node_t *currentNode = head;
+		for (int i = 0; i < k; i++) {
+			DEBUG(printf("-Moving into a branch on depth %d\n", i));
+			currentNode = node_branch_enter(currentNode, array[i]);
+		}
+	}
+	return head;
+}
 
 int char2int(char base) {
 	int integer = -1;
@@ -153,16 +184,16 @@ int char2int(char base) {
 	}
 
 //close the function
-	return integer;
+	return (integer);
 }
 
 int main(int argc, char *argv[]) {
 	FILE *fp = NULL;
 
-	//command line arguments go here.
+//command line arguments go here.
+	int k = 5;
 	char fileName[] = "homo_sapiensupstream.fas";
 	char buffer[MAX_LINE]; //todo commandline arg
-	int k = 10;
 
 	char base;
 	char* mode = "r";
@@ -176,9 +207,34 @@ int main(int argc, char *argv[]) {
 		DEBUG(printf("File opened properly\n"));
 	}
 
-	file_reader(fp, k);
+	//size 28
+	node_t * headNode = NULL;
+	node_t * currentNode = NULL;
 
-	char2int(base);
+
+	int sizeOfArray = 28;
+
+	//Initializing array to test code. this will come from the pre processed line
+	int *array = (int*) allocate_array(sizeOfArray,sizeof(int));
+	int* currentArrayPosition = array;
+	for(int i= 0; i < sizeOfArray; i++){
+		*currentArrayPosition = (i+3) % 4;
+		printf(" currentArrayPosition %d has == %d\n", i, *currentArrayPosition);
+		currentArrayPosition++;
+	}
+	currentArrayPosition = array;
+	//end test code.
+
+	//traverse the integer array and create a tree.
+	int stopPoint = sizeOfArray-k+1;
+	for (int i = 0; i < stopPoint; i++) {
+		DEBUG(printf("Looking at sequence: ");	int z = 0; while (z < k) { printf("%d ",*(currentArrayPosition + z) ); z++;} printf("\n"););
+		headNode = tree_create(headNode, currentArrayPosition++, k);
+	}
+
+	//file_reader(fp, k);
+
+	//char2int(base);
 
 	fclose(fp);
 	DEBUG(printf("End of program\n"));
