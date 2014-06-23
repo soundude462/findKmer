@@ -53,7 +53,7 @@ using namespace std;
 // Data structure for a tree.
 struct node_t {
 	int base;
-	struct node_t *nextBasePtr[4];
+	struct node_t *nextNodePtr[4];
 	unsigned int counter;
 };
 
@@ -121,10 +121,10 @@ node_t* node_create(int base) {
 	node_t* node = (node_t*) allocate_array(1, sizeof(node_t));
 	node->base = base;
 	node->counter = 1;
-	node->nextBasePtr[0] = NULL;
-	node->nextBasePtr[1] = NULL;
-	node->nextBasePtr[2] = NULL;
-	node->nextBasePtr[3] = NULL;
+	node->nextNodePtr[0] = NULL;
+	node->nextNodePtr[1] = NULL;
+	node->nextNodePtr[2] = NULL;
+	node->nextNodePtr[3] = NULL;
 	return node;
 }
 /*
@@ -134,15 +134,17 @@ node_t* node_create(int base) {
  */
 node_t* node_branch_enter(node_t* node, int base) {
 	DEBUG(printf("..node_branch_enter for base %d\n", base));
-	if (node->nextBasePtr[base] == NULL) {
+	if (node->nextNodePtr[base] == NULL) {
 		DEBUG(printf("***Creating Node.\n"));
-		node->nextBasePtr[base] = node_create(base);
+		node->nextNodePtr[base] = node_create(base);
 	} else {
-		node->nextBasePtr[base]->counter++;
-		DEBUG(printf("+++Incrementing counter to %d.\n",node->nextBasePtr[base]->counter));
+		node->nextNodePtr[base]->counter++;
+		DEBUG(
+				printf("+++Incrementing counter to %d.\n",
+						node->nextNodePtr[base]->counter));
 	}
 	DEBUG(printf("..returning next base pointer.\n"));
-	return node->nextBasePtr[base];
+	return node->nextNodePtr[base];
 }
 
 /*
@@ -165,6 +167,26 @@ node_t* tree_create(node_t* head, int* array, int k) {
 		}
 	}
 	return head;
+}
+
+void histo_and_free(node_t* head, int* array, int *k) {
+
+	if (head == NULL) {
+		//DEBUG(printf("histo_and_free::Head == NULL\n"));
+	} else if (head->nextNodePtr[0] == NULL && head->nextNodePtr[1] == NULL
+			&& head->nextNodePtr[2] == NULL && head->nextNodePtr[3] == NULL) {
+		printf(", %d\n", head->counter);
+	} else {
+		if (head->base == 'H') {
+			printf("Head found.\n\n");
+		} else {
+			printf("%d", head->base);
+		}
+		histo_and_free(head->nextNodePtr[0],array,k);
+		histo_and_free(head->nextNodePtr[1],array,k);
+		histo_and_free(head->nextNodePtr[2],array,k);
+		histo_and_free(head->nextNodePtr[3],array,k);
+	}
 }
 
 int char2int(char base) {
@@ -207,36 +229,42 @@ int main(int argc, char *argv[]) {
 		DEBUG(printf("File opened properly\n"));
 	}
 
-	//size 28
+	//variables for the nodes
 	node_t * headNode = NULL;
 	node_t * currentNode = NULL;
-
-
 	int sizeOfArray = 28;
 
 	//Initializing array to test code. this will come from the pre processed line
-	int *array = (int*) allocate_array(sizeOfArray,sizeof(int));
+	int *array = (int*) allocate_array(sizeOfArray, sizeof(int));
 	int* currentArrayPosition = array;
-	for(int i= 0; i < sizeOfArray; i++){
-		*currentArrayPosition = (i+3) % 4;
-		printf(" currentArrayPosition %d has == %d\n", i, *currentArrayPosition);
+	srand(time(NULL)); //seeding the random function.
+	for (int i = 0; i < sizeOfArray; i++) {
+		*currentArrayPosition = (rand()% 4  );
+		printf(" currentArrayPosition %d has == %d\n", i,
+				*currentArrayPosition);
 		currentArrayPosition++;
 	}
 	currentArrayPosition = array;
 	//end test code.
 
 	//traverse the integer array and create a tree.
-	int stopPoint = sizeOfArray-k+1;
+	int stopPoint = sizeOfArray - k + 1;
 	for (int i = 0; i < stopPoint; i++) {
-		DEBUG(printf("Looking at sequence: ");	int z = 0; while (z < k) { printf("%d ",*(currentArrayPosition + z) ); z++;} printf("\n"););
-		headNode = tree_create(headNode, currentArrayPosition++, k);
+		DEBUG(
+				printf("Looking at sequence: "); int z = 0; while (z < k) { printf("%d ",*(currentArrayPosition + z) ); z++;} printf("\n"););
+		headNode = tree_create(headNode, currentArrayPosition++, k+1);
 	}
 
+	int* histogram_temp = (int*) allocate_array(k,sizeof(int));
+	for(int i = 0; i < k; i++){
+		*(histogram_temp+i)=0;
+	}
+	histo_and_free(headNode,histogram_temp,  &k);
 	//file_reader(fp, k);
 
 	//char2int(base);
 
 	fclose(fp);
-	DEBUG(printf("End of program\n"));
+	DEBUG(printf("End of line\n"));
 	return 0;
 }
