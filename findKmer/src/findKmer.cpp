@@ -30,6 +30,26 @@ enum Base {
 #define MAX_LINE 1001
 #define DEBUG(x) x
 
+void *allocate_array(int size, size_t element_size)
+{
+	void *mem = malloc( size * element_size );
+	if ( ! mem ){
+		printf("allocate_array():: memory allocation failed");
+		exit(1);
+	}
+	return mem;
+}
+
+void *reallocate_array( void *array, int size, size_t element_size)
+{
+	void *new_array = realloc( array, element_size * size );
+	if ( ! new_array ){
+		printf("reallocate_array():: memory reallocation failed");
+		exit(1);
+	}
+
+	return new_array;
+}
 /* check that the given file can be read/written */
 void check_file(char *filename, char *mode) {
 	FILE *file = fopen(filename, mode);
@@ -83,7 +103,7 @@ void enter_the_node(node* node) {
  * Checks to see if there is a branch in that direction.
  * return true if the branch exists, else return false
  */
-bool create_branch(node* node, int base) {
+bool node_branch_check(node* node, int base) {
 	if(node->nextBasePtr[base] == NULL) {
 		return false;
 	}
@@ -95,9 +115,10 @@ bool create_branch(node* node, int base) {
  * Brings in the base of the node to create
  *
  */
-node* create_node(int base) {
+node* node_create(int base) {
 	node* mem = NULL;
 	mem = (node*) malloc(sizeof(node));
+	allocate_array(1,sizeof(node));
 	mem->base = base;
 	mem->counter = 1;
 	mem->nextBasePtr[0] = NULL;
@@ -109,8 +130,8 @@ node* create_node(int base) {
 /*
  * Adds a branch
  */
-void add_branch(node* stumpNode, int base) {
-	stumpNode->nextBasePtr[base] = create_node(base);
+void node_branch_create(node* stumpNode, int base) {
+	stumpNode->nextBasePtr[base] = node_create(base);
 }
 
 
