@@ -38,6 +38,7 @@
 // Version     :
 // Copyright   : Do not copy
 // Description : This code uses k which is a ones count for the length of a sequence to be found in DNA.
+// Compile     : To compile perform: g++ -O3 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/findKmer.d" -MT"src/findKmer.d" -o "src/findKmer.o" "../src/findKmer.cpp"
 //============================================================================
 using namespace std;
 #include <iostream>
@@ -46,7 +47,6 @@ using namespace std;
 #include <math.h>
 #include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
 #include <stdlib.h> //malloc is in this.
-#include "stdinc.h" //from Dr. Becchi's code to help reuse some functions.
 // basic file operations
 #include <fstream>
 
@@ -192,25 +192,6 @@ void deallocate_array(void** array) {
 	*array = NULL;
 }
 
-void file_reader(FILE *file, int k) {
-	rewind(file);
-
-	//TODO find out how many characters are on the line, then allocate memory for it.
-
-	char *buffer = allocate_char_array(MAX_LINE);
-	int i = 0;
-	int j = 0;
-	unsigned int c = fgetc(file);
-
-	DEBUG(int counter = 0);
-	int currentLocation = 0;
-	while (NULL != fgets(buffer, MAX_LINE, file)DEBUG(&& counter != 5)) {
-		DEBUG(printf("%s", buffer));
-		DEBUG(counter++);
-
-		buffer[currentLocation];
-	}
-}
 
 /*
  * Creates a tree node.
@@ -351,14 +332,17 @@ int main(int argc, char *argv[]) {
 	//to let the user know of our progress.
 	unsigned long long sequenceNumber = 0;
 
-	if (config.sequence_file != NULL)
-		check_file(config.sequence_file, mode);
-
 	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r")) != NULL) {
 		printf("Sequence file opened properly\n");
+	}else{
+		printf("Sequence file failed to open");
+		exit(1);
 	}
 	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
 		printf("Out file opened properly\n");
+	}else{
+		printf("Out file failed to open");
+		exit(1);
 	}
 
 	//Initializing array to test code. this will come from the pre processed line
@@ -395,8 +379,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	histo_and_free_recursive(headNode, histogram_temp, &config.k, 0);
+
 	printf("\n");
-	//histo_and_free(headNode, config.k);
+	cout << "!!!histogram creation finished!!!" << endl;
 
 	deallocate_array((void**) &histogram_temp);
 	deallocate_array((void**) &array);
