@@ -192,7 +192,6 @@ void deallocate_array(void** array) {
 	*array = NULL;
 }
 
-
 /*
  * Creates a tree node.
  * Brings in the base of the node to create
@@ -279,6 +278,8 @@ char int2base(int integer) {
 		base = 'G';
 	} else if (integer == 3) {
 		base = 'T';
+	} else {
+		base = 'e';
 	}
 
 //close the function
@@ -300,7 +301,7 @@ void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 			fputc(int2base(array[i]), config.out_file_pointer);
 		}
 		printf(", %d\n", head->counter);
-		fprintf(config.out_file_pointer,", %d\n",head->counter );
+		fprintf(config.out_file_pointer, ", %d\n", head->counter);
 	} else {
 		if (head->base == 'H') {
 			printf("Head found.\n\n");
@@ -319,6 +320,19 @@ void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 	}
 }
 
+void random_array(int sizeOfArray) {
+	//Initializing array to test code. this will come from the pre processed line
+	int *array = (int*) allocate_array(sizeOfArray, sizeof(int));
+	int* currentArrayPosition = array;
+	srand(time(NULL)); //seeding the random function.
+	for (int i = 0; i < sizeOfArray; i++) {
+		*currentArrayPosition = (rand() % 4);
+		//printf(" currentArrayPosition %d has == %d\n", i,	*currentArrayPosition);
+		currentArrayPosition++;
+	}
+	deallocate_array((void**) &array);
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -333,8 +347,6 @@ int main(int argc, char *argv[]) {
 		usage();
 	print_conf();
 
-	char buffer[MAX_LINE]; //todo commandline arg?
-
 	cout << "!!!Find The KMER!!!" << endl;
 
 	if (config.k < 0) {
@@ -344,50 +356,69 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	//variables for the nodes
-	node_t * headNode = NULL;
-	int sizeOfArray = 28;
-
-	//to let the user know of our progress.
-	unsigned long long sequenceNumber = 0;
-
-	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r")) != NULL) {
+	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r"))
+			!= NULL) {
 		printf("Sequence file opened properly\n");
 
-	}else{
+	} else {
 		printf("Sequence file failed to open");
 		exit(1);
 	}
 	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
 		printf("Out file opened properly\n");
-		fprintf(config.out_file_pointer,"Sequence, Frequency\n");
-	}else{
+		fprintf(config.out_file_pointer, "Sequence, Frequency\n");
+	} else {
 		printf("Out file failed to open");
 		exit(1);
 	}
 
-	//Initializing array to test code. this will come from the pre processed line
-	int *array = (int*) allocate_array(sizeOfArray, sizeof(int));
-	int* currentArrayPosition = array;
-	srand(time(NULL)); //seeding the random function.
-	for (int i = 0; i < sizeOfArray; i++) {
-		*currentArrayPosition = (rand() % 4);
-		//printf(" currentArrayPosition %d has == %d\n", i,	*currentArrayPosition);
-		currentArrayPosition++;
-	}
-	currentArrayPosition = array;
-	//end test code.
+	//variables for the nodes
+	node_t * headNode = NULL;
 
-	cout << "!!!Found " << ++sequenceNumber << " valid sequences so far!!!" << endl;
+	//extract valid sequences from file
+	unsigned long long sequenceNumber = 0;
+	int integerBuffer[MAX_LINE]; //todo commandline arg?
+	char c = 'A';
+	int seqSize = 0;
+	int codedBase = 0;
+	while (c != EOF) {
 
-	//traverse the integer array and create a tree.
-	int stopPoint = sizeOfArray - config.k + 1;
-	for (int i = 0; i < stopPoint; i++) {
+		c = fgetc(config.sequence_file_pointer);
+		codedBase = char2int(c);
+		DEBUG(cout << "Reading from file. \n";
+		cout << "The Base we found is " << c;
+		cout << " which when coded is " << codedBase << "\n";
+		);
 
-		DEBUG(
-				printf("Extracting sequence: "); int z = 0; while (z < config.k) {printf("%d ",*(currentArrayPosition + z) ); z++;}printf("\n"););
+		if (seqSize >= config.k && codedBase < 0) {
+			cout << "!!!Found " << ++sequenceNumber
+					<< " valid sequences so far!!!" << endl;
+			cout << seqSize << " Length Sequence Found \n";
 
-		headNode = tree_create(headNode, currentArrayPosition++, config.k + 1);
+			for (int n = 0; n < seqSize; n++)
+				cout << int2base(integerBuffer[n]);
+			cout << endl;
+
+			int* currentArrayPosition = integerBuffer;
+			//traverse the integer array and create a tree.
+			int stopPoint = seqSize - config.k + 1;
+			for (int i = 0; i < stopPoint; i++) {
+
+				DEBUG(
+						printf("Extracting sequence: "); int z = 0; while (z < config.k) {printf("%c ",int2base(*(currentArrayPosition + z)) ); z++;}printf("\n"););
+
+				headNode = tree_create(headNode, currentArrayPosition++,
+						config.k + 1);
+			}
+
+		}
+		if (codedBase < 0) {
+			seqSize = 0;
+		} else {
+			integerBuffer[seqSize] = codedBase;
+			seqSize++;
+		}
+
 	}
 
 	cout << "!!!All Sequences Found, now creating histogram!!!" << endl;
@@ -405,7 +436,6 @@ int main(int argc, char *argv[]) {
 	cout << "!!!histogram creation finished!!!" << endl;
 
 	deallocate_array((void**) &histogram_temp);
-	deallocate_array((void**) &array);
 
 	if (fclose(config.sequence_file_pointer) == EOF) {
 		printf("Sequence file close error! This is likely ok though.\n");
@@ -415,6 +445,6 @@ int main(int argc, char *argv[]) {
 				"Out file close error! This is not expected and might mean the data was not written to the file properly before the close.\n");
 	}
 
-	DEBUG(printf("End of program\n"));
+	printf("End of program\n");
 	return 0;
 }
