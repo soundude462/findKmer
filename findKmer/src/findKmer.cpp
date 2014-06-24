@@ -248,6 +248,43 @@ node_t* tree_create(node_t* head, int* array, int k) {
 	}
 	return head;
 }
+// Gus' Function
+int char2int(char base) {
+	int integer = -1;
+	if (base == 'A') {
+		integer = 0;
+	} else if (base == 'C') {
+		integer = 1;
+	} else if (base == 'G') {
+		integer = 2;
+	} else if (base == 'T') {
+		integer = 3;
+	} else if (base == 'N') {
+		integer = -2;
+	} else if (base == '\n') {
+		integer = -3;
+	}
+
+//close the function
+	return integer;
+}
+
+char int2base(int integer) {
+	char base;
+	if (integer == 0) {
+		base = 'A';
+	} else if (integer == 1) {
+		base = 'C';
+	} else if (integer == 2) {
+		base = 'G';
+	} else if (integer == 3) {
+		base = 'T';
+	}
+
+//close the function
+	return base;
+}
+
 /*
  * Histogram and free can be recursive for low numbers of K.
  * If K becomes too high then we may run out of stack/heap memory.
@@ -259,9 +296,11 @@ void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 		DEBUG_HISTO_AND_FREE_RECURSIVE(printf("histo_and_free::Head == NULL. Leaf found.\n"));
 	} else if (depth == (*k) + 1) {
 		for (int i = 0; i < *k; i++) {
-			printf("%d", array[i]);
+			printf("%c", int2base(array[i]));
+			fputc(int2base(array[i]), config.out_file_pointer);
 		}
 		printf(", %d\n", head->counter);
+		fprintf(config.out_file_pointer,", %d\n",head->counter );
 	} else {
 		if (head->base == 'H') {
 			printf("Head found.\n\n");
@@ -280,23 +319,6 @@ void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 	}
 }
 
-int char2int(char base) {
-	int integer = -1;
-	if (base == 'A') {
-		integer = 0;
-	} else if (base == 'C') {
-		integer = 1;
-	} else if (base == 'G') {
-		integer = 2;
-	} else if (base == 'T') {
-		integer = 3;
-	} else if (base == 'N') {
-		integer = -2;
-	} else if (base == '\n') {
-		integer = -3;
-	}
-	return (integer);
-}
 
 int main(int argc, char *argv[]) {
 
@@ -322,9 +344,6 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	//file operations.
-	char* mode = "r";
-
 	//variables for the nodes
 	node_t * headNode = NULL;
 	int sizeOfArray = 28;
@@ -334,12 +353,14 @@ int main(int argc, char *argv[]) {
 
 	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r")) != NULL) {
 		printf("Sequence file opened properly\n");
+
 	}else{
 		printf("Sequence file failed to open");
 		exit(1);
 	}
 	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
 		printf("Out file opened properly\n");
+		fprintf(config.out_file_pointer,"Sequence, Frequency\n");
 	}else{
 		printf("Out file failed to open");
 		exit(1);
