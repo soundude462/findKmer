@@ -52,8 +52,8 @@ using namespace std;
 
 #define MAX_LINE 1001
 #define DEBUG(x) x
-#define DEBUG_TREE_CREATE(x) //x
-#define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
+#define DEBUG_TREE_CREATE(x) x
+#define DEBUG_HISTO_AND_FREE_RECURSIVE(x) x
 // Data structure for a tree.
 struct node_t {
 	int base;
@@ -191,62 +191,6 @@ void deallocate_array(void** array) {
 	free(*array);
 	*array = NULL;
 }
-
-/*
- * Creates a tree node.
- * Brings in the base of the node to create
- *
- */
-node_t* node_create(int base) {
-	node_t* node = (node_t*) allocate_array(1, sizeof(node_t));
-	node->base = base;
-	node->counter = 1;
-	node->nextNodePtr[0] = NULL;
-	node->nextNodePtr[1] = NULL;
-	node->nextNodePtr[2] = NULL;
-	node->nextNodePtr[3] = NULL;
-	return node;
-}
-/*
- * Adds a branch if one doesn't already exist.
- * Increments the counter for the node we are going to step into.
- * Returns the pointer to the next node.
- */
-node_t* node_branch_enter_and_create(node_t* node, int base) {
-	DEBUG_TREE_CREATE(printf("..node_branch_enter_and_create for base %d\n", base));
-	if (node->nextNodePtr[base] == NULL) {
-		DEBUG_TREE_CREATE(printf("***Creating Node.\n"));
-		node->nextNodePtr[base] = node_create(base);
-	} else {
-		node->nextNodePtr[base]->counter++;
-		DEBUG_TREE_CREATE(
-				printf("+++Incrementing counter to %d.\n",
-						node->nextNodePtr[base]->counter));
-	}DEBUG_TREE_CREATE(printf("..returning next base pointer.\n"));
-	return node->nextNodePtr[base];
-}
-
-/*
- * Brings in a pointer to head of the tree, an integer array and the size k of the array
- * Checks to see if the array exists, and if the tree already exists.
- * Breaks if array does not exist, but creates the head node if tree does not exist.
- * Traverses the array and creates the tree based on what it finds.
- *
- */
-node_t* tree_create(node_t* head, int* array, int k) {
-	if (array != NULL) {
-		if (head == NULL) {
-			DEBUG_TREE_CREATE(printf("-Creating the head of the tree!\n"));
-			head = node_create('H');
-		}
-		node_t *currentNode = head;
-		for (int i = 0; i < k; i++) {
-			DEBUG_TREE_CREATE(printf("-Moving into a branch on depth %d\n", i));
-			currentNode = node_branch_enter_and_create(currentNode, array[i]);
-		}
-	}
-	return head;
-}
 // Gus' Function
 int char2int(char base) {
 	int integer = -1;
@@ -284,6 +228,62 @@ char int2base(int integer) {
 
 //close the function
 	return base;
+}
+
+/*
+ * Creates a tree node.
+ * Brings in the base of the node to create
+ *
+ */
+node_t* node_create(int base) {
+	node_t* node = (node_t*) allocate_array(1, sizeof(node_t));
+	node->base = base;
+	node->counter = 1;
+	node->nextNodePtr[0] = NULL;
+	node->nextNodePtr[1] = NULL;
+	node->nextNodePtr[2] = NULL;
+	node->nextNodePtr[3] = NULL;
+	return node;
+}
+/*
+ * Adds a branch if one doesn't already exist.
+ * Increments the counter for the node we are going to step into.
+ * Returns the pointer to the next node.
+ */
+node_t* node_branch_enter_and_create(node_t* node, int base) {
+	DEBUG_TREE_CREATE(printf("..node_branch_enter_and_create for base %c\n", int2base(base)));
+	if (node->nextNodePtr[base] == NULL) {
+		DEBUG_TREE_CREATE(printf("***Creating Node.\n"));
+		node->nextNodePtr[base] = node_create(base);
+	} else {
+		node->nextNodePtr[base]->counter++;
+		DEBUG_TREE_CREATE(
+				printf("+++Incrementing counter to %d.\n",
+						node->nextNodePtr[base]->counter));
+	}DEBUG_TREE_CREATE(printf("..returning next base pointer.\n"));
+	return node->nextNodePtr[base];
+}
+
+/*
+ * Brings in a pointer to head of the tree, an integer array and the size k of the array
+ * Checks to see if the array exists, and if the tree already exists.
+ * Breaks if array does not exist, but creates the head node if tree does not exist.
+ * Traverses the array and creates the tree based on what it finds.
+ *
+ */
+node_t* tree_create(node_t* head, int* array, int k) {
+	if (array != NULL) {
+		if (head == NULL) {
+			DEBUG_TREE_CREATE(printf("-Creating the head of the tree!\n"));
+			head = node_create('H');
+		}
+		node_t *currentNode = head;
+		for (int i = 0; i < k; i++) {
+			DEBUG_TREE_CREATE(printf("-Moving into a branch on depth %d\n", i));
+			currentNode = node_branch_enter_and_create(currentNode, array[i]);
+		}
+	}
+	return head;
 }
 
 /*
@@ -408,7 +408,7 @@ int main(int argc, char *argv[]) {
 						printf("Extracting sequence: "); int z = 0; while (z < config.k) {printf("%c ",int2base(*(currentArrayPosition + z)) ); z++;}printf("\n"););
 
 				headNode = tree_create(headNode, currentArrayPosition++,
-						config.k + 1);
+						config.k+1);
 			}
 
 		}
