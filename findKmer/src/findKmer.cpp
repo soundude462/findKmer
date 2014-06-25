@@ -52,14 +52,15 @@ using namespace std;
 
 #define MAX_LINE 1001
 #define DEBUG(x) x
-#define DEBUG_TREE_CREATE(x) x
-#define DEBUG_HISTO_AND_FREE_RECURSIVE(x) x
+#define DEBUG_TREE_CREATE(x) //x
+#define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 // Data structure for a tree.
 struct node_t {
 	int base;
 	struct node_t *nextNodePtr[4];
 	unsigned int counter;
 };
+
 /* configuration */
 static struct conf {
 	char *sequence_file;
@@ -80,9 +81,9 @@ void check_file(char *filename, char *mode) {
 }
 /* initialize the configuration */
 void init_conf() {
-	config.sequence_file = "homo_sapiensupstream.fas";
+	config.sequence_file = "test.txt";
 	config.sequence_file_pointer = NULL;
-	config.out_file = "output.txt";
+	config.out_file = "output.csv";
 	config.out_file_pointer = NULL;
 	config.k = 5;
 
@@ -107,20 +108,20 @@ static void usage() {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage: findKmer [options]\n");
 	fprintf(stderr,
-			"             [--parse|-p <sequence_file>] file with DNA sequence data with default as homo_sapiensupstream.fas. File must be in current directory.\n");
+			"             [--parse|-p <sequence_file.txt>] file with DNA sequence data with default as homo_sapiensupstream.fas. File must be in current directory.\n");
 	fprintf(stderr,
-			"             [--export|-e  <out_file>] file to output histogram data to with default as output.txt.\n");
+			"             [--export|-e  <out_file.csv>] file to output histogram data to with default as output.txt.\n");
 	fprintf(stderr,
 			"             [--ksize|-k  <k>] size of sequence for histogram with default as 5.\n");
 	fprintf(stderr, "\n");
-	exit(0);
+	//exit(0);
 }
 
 int parse_arguments(int argc, char **argv) {
 	int i = 1;
 	if (argc < 7) {
 		usage();
-		return 0;
+		return 1;
 	}
 	while (i < argc) {
 		if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -226,7 +227,7 @@ char int2base(int integer) {
 		base = 'e';
 	}
 
-//close the function
+	//close the function
 	return base;
 }
 
@@ -251,7 +252,9 @@ node_t* node_create(int base) {
  * Returns the pointer to the next node.
  */
 node_t* node_branch_enter_and_create(node_t* node, int base) {
-	DEBUG_TREE_CREATE(printf("..node_branch_enter_and_create for base %c\n", int2base(base)));
+	DEBUG_TREE_CREATE(
+			printf("..node_branch_enter_and_create for base %c\n",
+					int2base(base)));
 	if (node->nextNodePtr[base] == NULL) {
 		DEBUG_TREE_CREATE(printf("***Creating Node.\n"));
 		node->nextNodePtr[base] = node_create(base);
@@ -292,34 +295,41 @@ node_t* tree_create(node_t* head, int* array, int k) {
  * The histogram has been implemented but the free part of the function has not.
  */
 void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
-	DEBUG_HISTO_AND_FREE_RECURSIVE(printf("histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
+	DEBUG_HISTO_AND_FREE_RECURSIVE(
+			printf("histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
 	if (head == NULL) {
-		DEBUG_HISTO_AND_FREE_RECURSIVE(printf("histo_and_free::Head == NULL. Leaf found.\n"));
-	} else if (depth == (*k) + 1) {
-		for (int i = 0; i < *k; i++) {
-			printf("%c", int2base(array[i]));
-			fputc(int2base(array[i]), config.out_file_pointer);
-		}
-		printf(", %d\n", head->counter);
-		fprintf(config.out_file_pointer, ", %d\n", head->counter);
+		DEBUG_HISTO_AND_FREE_RECURSIVE(
+				printf("histo_and_free::Head == NULL. Leaf found.\n"));
 	} else {
 		if (head->base == 'H') {
-			printf("Head found.\n\n");
+			DEBUG_HISTO_AND_FREE_RECURSIVE(printf("Head found.\n\n"));
 		} else {
 			array[depth - 1] = head->base;
-			//printf("%d", head->base);
+			DEBUG_HISTO_AND_FREE_RECURSIVE(
+					for(int z =0; z < depth; z++) {printf(" ");}printf("writing %c to array\n", int2base(head->base)));
 		}
 
 		for (int i = 0; i < 4; i++) {
-			DEBUG_HISTO_AND_FREE_RECURSIVE(printf("histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
+			DEBUG_HISTO_AND_FREE_RECURSIVE(
+					printf("histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
 			histo_and_free_recursive(head->nextNodePtr[i], array, k, depth + 1);
 			//TODO verify that we are freeing memory.
 			deallocate_array((void**) &head->nextNodePtr[i]);
 		}
 
+		if (depth == (*k)) {
+			for (int i = 0; i < *k; i++) {
+				DEBUG(printf("%c", int2base(array[i])));
+				fputc(int2base(array[i]), config.out_file_pointer);
+			}
+			DEBUG(printf(", %d\n", head->counter));
+			fprintf(config.out_file_pointer, ", %d\n", head->counter);
+		}
+
 	}
 }
 
+//for testing purposes.
 void random_array(int sizeOfArray) {
 	//Initializing array to test code. this will come from the pre processed line
 	int *array = (int*) allocate_array(sizeOfArray, sizeof(int));
@@ -332,7 +342,6 @@ void random_array(int sizeOfArray) {
 	}
 	deallocate_array((void**) &array);
 }
-
 
 int main(int argc, char *argv[]) {
 
@@ -361,16 +370,18 @@ int main(int argc, char *argv[]) {
 		printf("Sequence file opened properly\n");
 
 	} else {
-		printf("Sequence file failed to open");
+		printf("Sequence file failed to open\n\n");
 		exit(1);
 	}
 	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
 		printf("Out file opened properly\n");
 		fprintf(config.out_file_pointer, "Sequence, Frequency\n");
 	} else {
-		printf("Out file failed to open");
+		printf("Out file failed to open\n\n");
 		exit(1);
 	}
+
+	cout << "!!! Reading sequence from file !!!" << endl;
 
 	//variables for the nodes
 	node_t * headNode = NULL;
@@ -382,23 +393,18 @@ int main(int argc, char *argv[]) {
 	int seqSize = 0;
 	int codedBase = 0;
 	while (c != EOF) {
-
 		c = fgetc(config.sequence_file_pointer);
 		codedBase = char2int(c);
-		DEBUG(cout << "Reading from file. \n";
-		cout << "The Base we found is " << c;
-		cout << " which when coded is " << codedBase << "\n";
-		);
+		DEBUG(
+				cout << "Reading from file. \n"; cout << "The Base we found is " << c; cout << " which when coded is " << codedBase << "\n";);
 
 		if (seqSize >= config.k && codedBase < 0) {
-			cout << "!!!Found " << ++sequenceNumber
-					<< " valid sequences so far!!!" << endl;
-			cout << seqSize << " Length Sequence Found \n";
+			DEBUG(
+					cout << "!!!Found " << sequenceNumber << " valid sequences so far!!!" << endl; cout << seqSize << " Length Sequence Found \n";
 
-			for (int n = 0; n < seqSize; n++)
-				cout << int2base(integerBuffer[n]);
-			cout << endl;
+					for (int n = 0; n < seqSize; n++) cout << int2base(integerBuffer[n]); cout << endl;);
 
+			++sequenceNumber;
 			int* currentArrayPosition = integerBuffer;
 			//traverse the integer array and create a tree.
 			int stopPoint = seqSize - config.k + 1;
@@ -408,7 +414,7 @@ int main(int argc, char *argv[]) {
 						printf("Extracting sequence: "); int z = 0; while (z < config.k) {printf("%c ",int2base(*(currentArrayPosition + z)) ); z++;}printf("\n"););
 
 				headNode = tree_create(headNode, currentArrayPosition++,
-						config.k+1);
+						config.k + 1);
 			}
 
 		}
@@ -421,6 +427,7 @@ int main(int argc, char *argv[]) {
 
 	}
 
+	cout << "!!!Found " << sequenceNumber << " valid sequences !!!" << endl;
 	cout << "!!!All Sequences Found, now creating histogram!!!" << endl;
 
 	//create a temporary array for the recursive function to keep as scratch memory to hold the sequence.
@@ -432,10 +439,10 @@ int main(int argc, char *argv[]) {
 
 	histo_and_free_recursive(headNode, histogram_temp, &config.k, 0);
 
+	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
+
 	printf("\n");
 	cout << "!!!histogram creation finished!!!" << endl;
-
-	deallocate_array((void**) &histogram_temp);
 
 	if (fclose(config.sequence_file_pointer) == EOF) {
 		printf("Sequence file close error! This is likely ok though.\n");
