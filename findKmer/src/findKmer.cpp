@@ -69,110 +69,14 @@ static struct conf {
 	FILE *out_file_pointer;
 	int k;
 } config;
-
-/* check that the given file can be read/written */
-void check_file(char *filename, char *mode) {
-	FILE *file = fopen(filename, mode);
-	if (file == NULL) {
-		printf("Unable to open file %s in %s mode\n", filename, mode);
-		exit(1);
-	} else
-		fclose(file);
-}
-/* initialize the configuration */
-void init_conf() {
-	config.sequence_file = "test.txt";
-	config.sequence_file_pointer = NULL;
-	config.out_file = "output.csv";
-	config.out_file_pointer = NULL;
-	config.k = 5;
-
-}
-/* print the configuration */
-void print_conf() {
-	fprintf(stderr, "\nCONFIGURATION: \n");
-	if (config.sequence_file)
-		fprintf(stderr, "- sequence_file file: %s\n", config.sequence_file);
-	if (config.out_file)
-		fprintf(stderr, "- export file: %s\n", config.out_file);
-	if (config.k)
-		fprintf(stderr, "- k size: %d\n", config.k);
-}
 //enumeration of possible bases in alphabetical order.
 enum Base {
 	A = 0, C = 1, G = 2, T = 3
 };
-
-/* usage */
-static void usage() {
-	fprintf(stderr, "\n");
-	fprintf(stderr, "Usage: findKmer [options]\n");
-	fprintf(stderr,
-			"             [--parse|-p <sequence_file.txt>] file with DNA sequence data with default as homo_sapiensupstream.fas. File must be in current directory.\n");
-	fprintf(stderr,
-			"             [--export|-e  <out_file.csv>] file to output histogram data to with default as output.txt.\n");
-	fprintf(stderr,
-			"             [--ksize|-k  <k>] size of sequence for histogram with default as 5.\n");
-	fprintf(stderr, "\n");
-	//exit(0);
-}
-
-int parse_arguments(int argc, char **argv) {
-	int i = 1;
-	if (argc < 7) {
-		usage();
-		return 1;
-	}
-	while (i < argc) {
-		if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-			usage();
-			return 0;
-		} else if (strcmp(argv[i], "-e") == 0
-				|| strcmp(argv[i], "--export") == 0) {
-			i++;
-			if (i == argc) {
-				fprintf(stderr, "Export file name missing.\n");
-				return 0;
-			}
-
-			if (argv[i] != NULL) {
-				check_file(argv[i], "w");
-			}
-			config.out_file = argv[i];
-		} else if (strcmp(argv[i], "-p") == 0
-				|| strcmp(argv[i], "--parse") == 0) {
-			i++;
-			if (i == argc) {
-				fprintf(stderr, "Sequence data file name missing.\n");
-				return 0;
-			}
-
-			if (argv[i] != NULL) {
-				check_file(argv[i], "r");
-			}
-
-			config.sequence_file = argv[i];
-		} else if (strcmp(argv[i], "-k") == 0) {
-			i++;
-			int k = atoi(argv[i]);
-			if (k < 0) {
-				fprintf(stderr,
-						"%d is not a valid value for k. Please select a number greater than zero",
-						k);
-			}
-			config.k = k;
-		} else {
-			fprintf(stderr, "Ignoring invalid option %s\n", argv[i]);
-		}
-		i++;
-	}
-	return 1;
-}
-
 void *allocate_array(int size, size_t element_size) {
 	void *mem = malloc(size * element_size);
 	if (!mem) {
-		printf("allocate_array():: memory allocation failed\n");
+		fprintf(stderr, "allocate_array():: memory allocation failed\n");
 		exit(1);
 	}
 	return mem;
@@ -181,7 +85,7 @@ void *allocate_array(int size, size_t element_size) {
 void *reallocate_array(void *array, int size, size_t element_size) {
 	void *new_array = realloc(array, element_size * size);
 	if (!new_array) {
-		printf("reallocate_array():: memory reallocation failed\n");
+		fprintf(stderr, "reallocate_array():: memory reallocation failed\n");
 		exit(1);
 	}
 
@@ -192,6 +96,109 @@ void deallocate_array(void** array) {
 	free(*array);
 	*array = NULL;
 }
+
+/* check that the given file can be read/written */
+void check_file(char *filename, char *mode) {
+	FILE *file = fopen(filename, mode);
+	if (file == NULL) {
+		fprintf(stderr, "Unable to open file %s in %s mode\n", filename, mode);
+		exit(1);
+	} else
+		fclose(file);
+}
+/* initialize the configuration */
+void init_conf() {
+	config.sequence_file = "homo_sapiensupstream.fas";
+	config.sequence_file_pointer = NULL;
+	config.out_file = NULL; //"output.csv";
+	config.out_file_pointer = NULL;
+	config.k = 5;
+
+}
+/* print the configuration */
+void print_conf() {
+	fprintf(stdout, "\nATTEMPTING CONFIGURATION: \n");
+	if (config.sequence_file)
+		fprintf(stdout, "- sequence_file file: %s\n", config.sequence_file);
+	if (config.out_file)
+		fprintf(stdout, "- export file: %s\n", config.out_file);
+	if (config.k)
+		fprintf(stdout, "- k size: %d\n", config.k);
+}
+
+/* usage */
+static void usage() {
+	fprintf(stdout, "\n");
+	fprintf(stdout, "Usage: findKmer [options]\n");
+	fprintf(stdout,
+			"             [--parse|-p <sequence_file.txt>] \n               File with DNA sequence data with default as homo_sapiensupstream.fas.\n               File must be in current directory.\n");
+	fprintf(stdout,
+			"             [--export|-e  <out_file.csv>] \n               File to output histogram data to with default as output.txt.\n");
+	fprintf(stdout,
+			"             [--ksize|-k  <k>] \n               Size of sequence for histogram with default as 5.\n");
+	fprintf(stdout, "\n");
+	//exit(0);
+}
+
+int parse_arguments(int argc, char **argv) {
+	int i = 1;
+	if (argc < 2) {
+		usage();
+
+	} else {
+
+		while (i < argc) {
+			if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+				usage();
+				return 0;
+			} else if (strcmp(argv[i], "-e") == 0
+					|| strcmp(argv[i], "--export") == 0) {
+				i++;
+				if (i == argc) {
+					fprintf(stderr, "Export file name missing.\n");
+					return 0;
+				}
+
+				if (argv[i] != NULL) {
+					check_file(argv[i], "w");
+				}
+				config.out_file = argv[i];
+			} else if (strcmp(argv[i], "-p") == 0
+					|| strcmp(argv[i], "--parse") == 0) {
+				i++;
+				if (i == argc) {
+					fprintf(stderr, "Sequence data file name missing.\n");
+					return 0;
+				}
+
+				if (argv[i] != NULL) {
+					check_file(argv[i], "r");
+				}
+
+				config.sequence_file = argv[i];
+			} else if (strcmp(argv[i], "-k") == 0) {
+				i++;
+				int k = atoi(argv[i]);
+				if (k < 0) {
+					fprintf(stderr,
+							"%d is not a valid value for k. Please select a number greater than zero",
+							k);
+				}
+				config.k = k;
+			} else {
+				fprintf(stderr, "Ignoring invalid option %s\n", argv[i]);
+			}
+			i++;
+		}
+	}
+
+	if (config.out_file == NULL) {
+		config.out_file = (char*) allocate_array(20, sizeof(char));
+		sprintf(config.out_file, "%dmerOutput.csv", config.k);
+	}
+	return 1;
+}
+
 // Gus' Function
 int char2int(char base) {
 	int integer = -1;
@@ -253,17 +260,17 @@ node_t* node_create(int base) {
  */
 node_t* node_branch_enter_and_create(node_t* node, int base) {
 	DEBUG_TREE_CREATE(
-			printf("..node_branch_enter_and_create for base %c\n",
+			fprintf(stdout, "..node_branch_enter_and_create for base %c\n",
 					int2base(base)));
 	if (node->nextNodePtr[base] == NULL) {
-		DEBUG_TREE_CREATE(printf("***Creating Node.\n"));
+		DEBUG_TREE_CREATE(fprintf(stdout, "***Creating Node.\n"));
 		node->nextNodePtr[base] = node_create(base);
 	} else {
 		node->nextNodePtr[base]->counter++;
 		DEBUG_TREE_CREATE(
-				printf("+++Incrementing counter to %d.\n",
+				fprintf(stdout, "+++Incrementing counter to %d.\n",
 						node->nextNodePtr[base]->counter));
-	}DEBUG_TREE_CREATE(printf("..returning next base pointer.\n"));
+	}DEBUG_TREE_CREATE(fprintf(stdout, "..returning next base pointer.\n"));
 	return node->nextNodePtr[base];
 }
 
@@ -277,12 +284,12 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 node_t* tree_create(node_t* head, int* array, int k) {
 	if (array != NULL) {
 		if (head == NULL) {
-			DEBUG_TREE_CREATE(printf("-Creating the head of the tree!\n"));
+			DEBUG_TREE_CREATE(fprintf(stdout, "-Creating the head of the tree!\n"));
 			head = node_create('H');
 		}
 		node_t *currentNode = head;
 		for (int i = 0; i < k; i++) {
-			DEBUG_TREE_CREATE(printf("-Moving into a branch on depth %d\n", i));
+			DEBUG_TREE_CREATE(fprintf(stdout, "-Moving into a branch on depth %d\n", i));
 			currentNode = node_branch_enter_and_create(currentNode, array[i]);
 		}
 	}
@@ -296,22 +303,22 @@ node_t* tree_create(node_t* head, int* array, int k) {
  */
 void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 	DEBUG_HISTO_AND_FREE_RECURSIVE(
-			printf("histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
+			fprintf(stderr, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
 	if (head == NULL) {
 		DEBUG_HISTO_AND_FREE_RECURSIVE(
-				printf("histo_and_free::Head == NULL. Leaf found.\n"));
+				fprintf(stdout, "histo_and_free::Head == NULL. Leaf found.\n"));
 	} else {
 		if (head->base == 'H') {
-			DEBUG_HISTO_AND_FREE_RECURSIVE(printf("Head found.\n\n"));
+			DEBUG_HISTO_AND_FREE_RECURSIVE(fprintf(stdout, "Head found.\n\n"));
 		} else {
 			array[depth - 1] = head->base;
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
-					for(int z =0; z < depth; z++) {printf(" ");}printf("writing %c to array\n", int2base(head->base)));
+					for(int z =0; z < depth; z++) {fprintf(stdout, " ");}fprintf(stdout, "writing %c to array\n", int2base(head->base)));
 		}
 
 		for (int i = 0; i < 4; i++) {
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
-					printf("histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
+					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
 			histo_and_free_recursive(head->nextNodePtr[i], array, k, depth + 1);
 			//TODO verify that we are freeing memory.
 			deallocate_array((void**) &head->nextNodePtr[i]);
@@ -319,10 +326,9 @@ void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 
 		if (depth == (*k)) {
 			for (int i = 0; i < *k; i++) {
-				DEBUG(printf("%c", int2base(array[i])));
+				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
-			}
-			DEBUG(printf(", %d\n", head->counter));
+			} DEBUG(fprintf(stdout, ", %d\n", head->counter));
 			fprintf(config.out_file_pointer, ", %d\n", head->counter);
 		}
 
@@ -337,7 +343,7 @@ void random_array(int sizeOfArray) {
 	srand(time(NULL)); //seeding the random function.
 	for (int i = 0; i < sizeOfArray; i++) {
 		*currentArrayPosition = (rand() % 4);
-		//printf(" currentArrayPosition %d has == %d\n", i,	*currentArrayPosition);
+		//fprintf(stdout, " currentArrayPosition %d has == %d\n", i,	*currentArrayPosition);
 		currentArrayPosition++;
 	}
 	deallocate_array((void**) &array);
@@ -347,41 +353,39 @@ int main(int argc, char *argv[]) {
 
 	//command line arguments.
 	DEBUG(
-			int currentArgument =0; while(currentArgument < argc) { printf("argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
-			/* Next arg. */
-			currentArgument++; } printf("\n");)
+			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
+				/* Next arg. */
+				currentArgument++;}fprintf(stdout, "\n");)
 
 	init_conf();
 	while (!parse_arguments(argc, argv))
 		usage();
 	print_conf();
 
-	cout << "!!!Find The KMER!!!" << endl;
+	fprintf(stdout, "!!!Find The KMER!!!\n");
 
 	if (config.k < 0) {
-		cout << config.k
-				<< " is not a valid value for k. Please select a number greater than zero"
-				<< endl;
+		fprintf(stderr, "%d is not a valid value for k. Please select a number greater than zero\n",config.k);
 		exit(1);
 	}
 
 	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r"))
 			!= NULL) {
-		printf("Sequence file opened properly\n");
+		fprintf(stdout, "Sequence file opened properly\n");
 
 	} else {
-		printf("Sequence file failed to open\n\n");
+		fprintf(stderr, "Sequence file failed to open\n\n");
 		exit(1);
 	}
 	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
-		printf("Out file opened properly\n");
+		fprintf(stdout, "Out file opened properly\n");
 		fprintf(config.out_file_pointer, "Sequence, Frequency\n");
 	} else {
-		printf("Out file failed to open\n\n");
+		fprintf(stderr, "Out file failed to open\n\n");
 		exit(1);
 	}
 
-	cout << "!!! Reading sequence from file !!!" << endl;
+	fprintf(stdout, " Reading sequence from file\n");
 
 	//variables for the nodes
 	node_t * headNode = NULL;
@@ -411,7 +415,7 @@ int main(int argc, char *argv[]) {
 			for (int i = 0; i < stopPoint; i++) {
 
 				DEBUG(
-						printf("Extracting sequence: "); int z = 0; while (z < config.k) {printf("%c ",int2base(*(currentArrayPosition + z)) ); z++;}printf("\n"););
+						fprintf(stdout, "Extracting sequence: "); int z = 0; while (z < config.k) {fprintf(stdout, "%c ",int2base(*(currentArrayPosition + z)) ); z++;}fprintf(stdout, "\n"););
 
 				headNode = tree_create(headNode, currentArrayPosition++,
 						config.k + 1);
@@ -427,8 +431,8 @@ int main(int argc, char *argv[]) {
 
 	}
 
-	cout << "!!!Found " << sequenceNumber << " valid sequences !!!" << endl;
-	cout << "!!!All Sequences Found, now creating histogram!!!" << endl;
+	fprintf(stdout, "Found %d valid sequences.\n",sequenceNumber);
+	fprintf(stdout, "Now creating histogram.\n");
 
 	//create a temporary array for the recursive function to keep as scratch memory to hold the sequence.
 	int* histogram_temp = (int*) allocate_array(config.k, sizeof(int));
@@ -440,18 +444,17 @@ int main(int argc, char *argv[]) {
 	histo_and_free_recursive(headNode, histogram_temp, &config.k, 0);
 	deallocate_array((void**) &headNode);
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
-
-	printf("\n");
-	cout << "!!!histogram creation finished!!!" << endl;
+	DEBUG(fprintf(stdout, "\n"));
+	cout << "histogram creation finished." << endl;
 
 	if (fclose(config.sequence_file_pointer) == EOF) {
-		printf("Sequence file close error! This is likely ok though.\n");
+		fprintf(stderr, "Sequence file close error! This is likely ok though.\n");
 	}
 	if (fclose(config.out_file_pointer) == EOF) {
-		printf(
+		fprintf(stderr,
 				"Out file close error! This is not expected and might mean the data was not written to the file properly before the close.\n");
 	}
-
-	printf("End of program\n");
+	cout << "Your file can be found in the current directory as: " << config.out_file << endl;
+	fprintf(stdout, "End of program\n");
 	return 0;
 }
