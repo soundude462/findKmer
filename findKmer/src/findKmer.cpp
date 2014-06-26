@@ -267,6 +267,9 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 		node->nextNodePtr[base] = node_create(base);
 	} else {
 		node->nextNodePtr[base]->counter++;
+		if(node->nextNodePtr[base]==0){
+			fprintf(stderr,"!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable");
+		}
 		DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
 						node->nextNodePtr[base]->counter));
