@@ -51,7 +51,7 @@ using namespace std;
 #include <fstream>
 
 #define MAX_LINE 1001
-#define DEBUG(x) x
+#define DEBUG(x) //x
 #define DEBUG_TREE_CREATE(x) //x
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 // Data structure for a tree.
@@ -438,7 +438,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	histo_and_free_recursive(headNode, histogram_temp, &config.k, 0);
-
+	deallocate_array((void**) &headNode);
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 
 	printf("\n");
