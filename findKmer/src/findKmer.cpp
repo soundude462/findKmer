@@ -51,7 +51,7 @@ using namespace std;
 #include <fstream>
 
 #define MAX_LINE 1001
-#define DEBUG(x) //x
+#define DEBUG(x) x
 #define DEBUG_TREE_CREATE(x) //x
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 // Data structure for a tree.
@@ -108,22 +108,47 @@ void check_file(char *filename, char *mode) {
 }
 /* initialize the configuration */
 void init_conf() {
-	config.sequence_file = "homo_sapiensupstream.fas";
+	config.sequence_file = NULL;
 	config.sequence_file_pointer = NULL;
 	config.out_file = NULL; //"output.csv";
 	config.out_file_pointer = NULL;
 	config.k = 5;
 
 }
+
+/* This function fills in any gaps in the configuration file.*/
+void set_default_conf() {
+
+	if (!config.sequence_file) {
+		config.sequence_file = "homo_sapiensupstream.fas";
+	}
+
+	if (!config.out_file) {
+		char* nameOfFile = "mer_Historam_Of_";
+		char* outFileExension = ".csv";
+		config.out_file = (char*) allocate_array(
+				strlen("999") + strlen(nameOfFile)
+						+ strlen(config.sequence_file)
+						+ strlen(outFileExension), sizeof(char));
+		sprintf(config.out_file, "%d%s%s%s", config.k, nameOfFile,
+				config.sequence_file, outFileExension);
+	}
+
+	if (!config.k) {
+		config.k = 5;
+	}
+}
 /* print the configuration */
 void print_conf() {
 	fprintf(stdout, "\nATTEMPTING CONFIGURATION: \n");
+	set_default_conf();
 	if (config.sequence_file)
 		fprintf(stdout, "- sequence_file file: %s\n", config.sequence_file);
 	if (config.out_file)
 		fprintf(stdout, "- export file: %s\n", config.out_file);
 	if (config.k)
 		fprintf(stdout, "- k size: %d\n", config.k);
+	fprintf(stdout, "\n");
 }
 
 /* usage */
@@ -131,11 +156,11 @@ static void usage() {
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Usage: findKmer [options]\n");
 	fprintf(stdout,
-			"             [--parse|-p <sequence_file.txt>] \n               File with DNA sequence data with default as homo_sapiensupstream.fas.\n               File must be in current directory.\n");
+			"             [--parse|-p <sequence_file.txt>] \n               File with DNA sequence data.\n               File must be in current directory.\n                Default is homo_sapiensupstream.fas.\n");
 	fprintf(stdout,
-			"             [--export|-e  <out_file.csv>] \n               File to output histogram data to with default as output.txt.\n");
+			"             [--export|-e  <out_file.csv>] \n               File to output histogram data to.\n                Default output file name is dynamic.\n");
 	fprintf(stdout,
-			"             [--ksize|-k  <k>] \n               Size of sequence for histogram with default as 5.\n");
+			"             [--ksize|-k  <k>] \n               Size of sequence for histogram.\n                Default is 5.\n");
 	fprintf(stdout, "\n");
 	//exit(0);
 }
@@ -143,7 +168,7 @@ static void usage() {
 int parse_arguments(int argc, char **argv) {
 	int i = 1;
 	if (argc < 2) {
-		usage();
+		return 1;
 
 	} else {
 
@@ -192,10 +217,6 @@ int parse_arguments(int argc, char **argv) {
 		}
 	}
 
-	if (config.out_file == NULL) {
-		config.out_file = (char*) allocate_array(20, sizeof(char));
-		sprintf(config.out_file, "%dmerOutput.csv", config.k);
-	}
 	return 1;
 }
 
@@ -212,8 +233,6 @@ int char2int(char base) {
 		integer = 3;
 	} else if (base == 'N') {
 		integer = -2;
-	} else if (base == '\n') {
-		integer = -3;
 	}
 
 //close the function
@@ -267,10 +286,10 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 		node->nextNodePtr[base] = node_create(base);
 	} else {
 		node->nextNodePtr[base]->counter++;
-		if(node->nextNodePtr[base]==0){
-			fprintf(stderr,"!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable");
-		}
-		DEBUG_TREE_CREATE(
+		if (node->nextNodePtr[base] == 0) {
+			fprintf(stderr,
+					"!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable");
+		}DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
 						node->nextNodePtr[base]->counter));
 	}DEBUG_TREE_CREATE(fprintf(stdout, "..returning next base pointer.\n"));
@@ -331,7 +350,7 @@ void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 			for (int i = 0; i < *k; i++) {
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
-			} DEBUG(fprintf(stdout, ", %d\n", head->counter));
+			}DEBUG(fprintf(stdout, ", %d\n", head->counter));
 			fprintf(config.out_file_pointer, ", %d\n", head->counter);
 		}
 
@@ -359,7 +378,7 @@ int main(int argc, char *argv[]) {
 			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
 				/* Next arg. */
 				currentArgument++;}fprintf(stdout, "\n");)
-
+	usage();
 	init_conf();
 	while (!parse_arguments(argc, argv))
 		usage();
@@ -368,7 +387,9 @@ int main(int argc, char *argv[]) {
 	fprintf(stdout, "!!!Find The KMER!!!\n");
 
 	if (config.k < 0) {
-		fprintf(stderr, "%d is not a valid value for k. Please select a number greater than zero\n",config.k);
+		fprintf(stderr,
+				"%d is not a valid value for k. Please select a number greater than zero\n",
+				config.k);
 		exit(1);
 	}
 
@@ -388,7 +409,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	fprintf(stdout, " Reading sequence from file\n");
+	fprintf(stdout, "Reading sequence from file\n");
 
 	//variables for the nodes
 	node_t * headNode = NULL;
@@ -405,36 +426,45 @@ int main(int argc, char *argv[]) {
 		DEBUG(
 				cout << "Reading from file. \n"; cout << "The Base we found is " << c; cout << " which when coded is " << codedBase << "\n";);
 
-		if (seqSize >= config.k && codedBase < 0) {
-			DEBUG(
-					cout << "!!!Found " << sequenceNumber << " valid sequences so far!!!" << endl; cout << seqSize << " Length Sequence Found \n";
-
-					for (int n = 0; n < seqSize; n++) cout << int2base(integerBuffer[n]); cout << endl;);
-
-			++sequenceNumber;
-			int* currentArrayPosition = integerBuffer;
-			//traverse the integer array and create a tree.
-			int stopPoint = seqSize - config.k + 1;
-			for (int i = 0; i < stopPoint; i++) {
-
+		//ignore newlines, but other invalid base data may be necessary to break the sequence, like > or numbers.
+		if (c != '\n') {
+			if (seqSize >= config.k && codedBase < 0) {
 				DEBUG(
-						fprintf(stdout, "Extracting sequence: "); int z = 0; while (z < config.k) {fprintf(stdout, "%c ",int2base(*(currentArrayPosition + z)) ); z++;}fprintf(stdout, "\n"););
+						cout << "!!!Found " << sequenceNumber << " valid sequences so far!!!" << endl; cout << seqSize << " Length Sequence Found \n";
 
-				headNode = tree_create(headNode, currentArrayPosition++,
-						config.k + 1);
+						for (int n = 0; n < seqSize; n++) cout << int2base(integerBuffer[n]); cout << endl;);
+
+				++sequenceNumber;
+				int* currentArrayPosition = integerBuffer;
+				//traverse the integer array and create a tree.
+				int stopPoint = seqSize - config.k + 1;
+				for (int i = 0; i < stopPoint; i++) {
+
+					DEBUG(
+							fprintf(stdout, "Extracting sequence: "); int z = 0; while (z < config.k) {fprintf(stdout, "%c ",int2base(*(currentArrayPosition + z)) ); z++;}fprintf(stdout, "\n"););
+
+					headNode = tree_create(headNode, currentArrayPosition++,
+							config.k + 1);
+				}
+
 			}
+			if (codedBase < 0) {
+				seqSize = 0;
+			} else {
+				if(seqSize > MAX_LINE){
+					fflush(stdout);
+					fprintf(stderr, "\n!!!!Index %d has exceeded array bounds of %d\n",seqSize, MAX_LINE);
+					fflush(stderr);
+				}
+				integerBuffer[seqSize] = codedBase;
+				seqSize++;
+			}
+		}
 
-		}
-		if (codedBase < 0) {
-			seqSize = 0;
-		} else {
-			integerBuffer[seqSize] = codedBase;
-			seqSize++;
-		}
 
 	}
 
-	fprintf(stdout, "Found %d valid sequences.\n",sequenceNumber);
+	fprintf(stdout, "Found %d valid sequences.\n", sequenceNumber);
 	fprintf(stdout, "Now creating histogram.\n");
 
 	//create a temporary array for the recursive function to keep as scratch memory to hold the sequence.
@@ -451,13 +481,15 @@ int main(int argc, char *argv[]) {
 	cout << "histogram creation finished." << endl;
 
 	if (fclose(config.sequence_file_pointer) == EOF) {
-		fprintf(stderr, "Sequence file close error! This is likely ok though.\n");
+		fprintf(stderr,
+				"Sequence file close error! This is likely ok though.\n");
 	}
 	if (fclose(config.out_file_pointer) == EOF) {
 		fprintf(stderr,
 				"Out file close error! This is not expected and might mean the data was not written to the file properly before the close.\n");
 	}
-	cout << "Your file can be found in the current directory as: " << config.out_file << endl;
+	cout << "Your file can be found in the current directory as: " << "\n    "
+			<< config.out_file << endl;
 	fprintf(stdout, "End of program\n");
 	return 0;
 }
