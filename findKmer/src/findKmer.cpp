@@ -38,7 +38,13 @@
 // Version     :
 // Copyright   : Do not copy
 // Description : This code uses k which is a ones count for the length of a sequence to be found in DNA.
-// Bugs		   : Known bugs include memory leaks and the tree is created with more depth than intended.
+// Expects     : The parse file is to be formatted in this way:
+//                 '>' designates the beginning of an ID and newlines ('\n') designates the end
+//                 Newlines ('\n') are otherwise ignored completely
+//                 Sequences are broken by any letter (other than A, C, T or G)
+//                 The letter N is a known letter that occurs in a sequence and is designated as the end of a sequence if found.
+//                 All valid bases are in upper case (A, C, T or G) not lower case.
+// Bugs        : Known bugs include memory leaks and the tree is created with more depth than intended.
 // Compile     : To compile perform: g++ -O3 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/findKmer.d" -MT"src/findKmer.d" -o "src/findKmer.o" "../src/findKmer.cpp"
 //============================================================================
 using namespace std;
@@ -48,14 +54,19 @@ using namespace std;
 #include <math.h>
 #include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
 #include <stdlib.h> //malloc is in this.
-// basic file operations
-#include <fstream>
+#include <fstream> // basic file operations
+
+//must be a string literal with file extension included.
+#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
+#define DEFAULT_K_VALUE 8
 
 #define MAX_LINE 1001
 #define DEBUG(x) //x
 #define DEBUG_TREE_CREATE(x) //x
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
-// Data structure for a tree.
+#define DEBUG_SHIFT_AND_INSERT(x) //x
+
+/* Data structure for a tree. */
 struct node_t {
 	int base;
 	struct node_t *nextNodePtr[4];
@@ -70,10 +81,6 @@ static struct conf {
 	FILE *out_file_pointer;
 	int k;
 } config;
-//enumeration of possible bases in alphabetical order.
-enum Base {
-	A = 0, C = 1, G = 2, T = 3
-};
 
 void *allocate_array(int size, size_t element_size) {
 	void *mem = malloc(size * element_size);
@@ -115,7 +122,7 @@ void init_conf() {
 	config.sequence_file_pointer = NULL;
 	config.out_file = NULL;
 	config.out_file_pointer = NULL;
-	config.k = 5;
+	config.k = 0;
 
 }
 
@@ -123,7 +130,11 @@ void init_conf() {
 void set_default_conf() {
 
 	if (!config.sequence_file) {
-		config.sequence_file = "homo_sapiensupstream.fas";
+		config.sequence_file = DEFAULT_SEQUENCE_FILE_NAME;
+	}
+
+	if (!config.k) {
+		config.k = DEFAULT_K_VALUE;
 	}
 
 	if (!config.out_file) {
@@ -137,9 +148,6 @@ void set_default_conf() {
 				config.sequence_file, outFileExension);
 	}
 
-	if (!config.k) {
-		config.k = 5;
-	}
 }
 
 /* print the configuration */
@@ -153,6 +161,30 @@ void print_conf() {
 	if (config.k)
 		fprintf(stdout, "- k size: %d\n", config.k);
 	fprintf(stdout, "\n");
+
+	/* Double check configuration */
+	if (config.k < 0) {
+		fprintf(stderr,
+				"%d is not a valid value for k. Please select a number greater than zero\n",
+				config.k);
+		exit(EXIT_FAILURE);
+	}
+
+	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r"))
+			!= NULL) {
+		fprintf(stdout, "Sequence file opened properly\n");
+
+	} else {
+		fprintf(stderr, "Sequence file failed to open\n\n");
+		exit(EXIT_FAILURE);
+	}
+	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
+		fprintf(stdout, "Out file opened properly\n");
+		fprintf(config.out_file_pointer, "Sequence, Frequency");
+	} else {
+		fprintf(stderr, "Out file failed to open\n\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 /* usage */
@@ -160,11 +192,13 @@ static void usage() {
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Usage: findKmer [options]\n");
 	fprintf(stdout,
-			"             [--parse|-p <sequence_file.txt>] \n               File with DNA sequence data.\n               File must be in current directory.\n                Default is homo_sapiensupstream.fas.\n\n");
+			"             [--parse|-p <sequence_file.txt>] \n               File with DNA sequence data.\n               File must be in current directory.\n                Default is %s.\n\n",
+			DEFAULT_SEQUENCE_FILE_NAME);
 	fprintf(stdout,
 			"             [--export|-e  <out_file.csv>] \n               File to output histogram data to.\n                Default output file name is dynamic.\n\n");
 	fprintf(stdout,
-			"             [--ksize|-k  <k>] \n               Size of sequence for histogram.\n                Default is 5.\n\n");
+			"             [--ksize|-k  <k>] \n               Size of sequence for histogram.\n                Default is %d.\n\n",
+			DEFAULT_K_VALUE);
 	fprintf(stdout, "\n");
 
 }
@@ -237,12 +271,13 @@ int base2int(char base) {
 		integer = 2;
 	} else if (base == 'N') {
 		integer = -2;
+	} else{
+		fprintf(stderr,"Unknown character %c processed! File may be corrupted",base);
 	}
 
 	//close the function
 	return integer;
 }
-
 char int2base(int integer) {
 	char base;
 	if (integer == 0) {
@@ -291,7 +326,7 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 	} else {
 		node->nextNodePtr[base]->counter++;
 		if (node->nextNodePtr[base] == 0) {
-			fprintf(stderr,
+			fprintf(stdout,
 					"!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable");
 		}DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
@@ -326,11 +361,14 @@ node_t* tree_create(node_t* head, int* array, int k) {
 /*
  * Histogram and free can be recursive for low numbers of K.
  * If K becomes too high then we may run out of stack/heap memory.
- *
+ * It will traverse the tree starting at the head and work its way to the depth provided by k.
+ * When it reaches the depth k, it will print out the sequence it saw from the root to this point.
+ * It will then free that node and work its way back, hopefully freeing every node as it goes along.
+ * The implementation of freeing the tree is not implemented here.
  */
-void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
+void histo_recursive(node_t* head, int* array, int *k, int depth) {
 	DEBUG_HISTO_AND_FREE_RECURSIVE(
-			fprintf(stderr, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
+			fprintf(stdout, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
 	if (head == NULL) {
 		DEBUG_HISTO_AND_FREE_RECURSIVE(
 				fprintf(stdout, "histo_and_free::Head == NULL. Leaf found.\n"));
@@ -346,21 +384,21 @@ void histo_and_free_recursive(node_t* head, int* array, int *k, int depth) {
 		for (int i = 0; i < 4; i++) {
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
 					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
-			histo_and_free_recursive(head->nextNodePtr[i], array, k, depth + 1);
-			//TODO verify that we are freeing memory.
-			deallocate_array((void**) &head->nextNodePtr[i]);
+			histo_recursive(head->nextNodePtr[i], array, k, depth + 1);
+			//free memory.
+			//deallocate_array((void**) &head->nextNodePtr[i]);
 		}
 
 		if (depth == (*k)) {
+			fputc('\n', config.out_file_pointer);
 			for (int i = 0; i < *k; i++) {
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
 			}DEBUG(fprintf(stdout, ", %d\n", head->counter));
-			fprintf(config.out_file_pointer, ", %d\n", head->counter);
-		}
-
-	}
-}
+			fprintf(config.out_file_pointer, ", %d", head->counter);
+		}			//end if for reaching depth of k
+	}			//end else if for head == NULL
+}			//end histogram function.
 
 //for testing purposes.
 void random_array(int sizeOfArray) {
@@ -376,52 +414,30 @@ void random_array(int sizeOfArray) {
 	deallocate_array((void**) &array);
 }
 
-int main(int argc, char *argv[]) {
+void shift_left_and_insert(int* array, int integer_to_insert) {
+	DEBUG_SHIFT_AND_INSERT(
+			printf("shift_left_and_insert:: received: %c. Starting with array : ",int2base(integer_to_insert)); for (int i = 0; i < config.k; i++) {printf("%c", int2base(*(array + i)));}printf("\n"););
 
-	//command line arguments.
-	DEBUG(
-			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
-				/* Next arg. */
-				currentArgument++;}fprintf(stdout, "\n");)
-	usage();
-	init_conf();
-	while (!parse_arguments(argc, argv))
-		usage();
-	print_conf();
-
-	fprintf(stdout, "!!!Find The KMER!!!\n");
-
-	if (config.k < 0) {
-		fprintf(stderr,
-				"%d is not a valid value for k. Please select a number greater than zero\n",
-				config.k);
-		exit(EXIT_FAILURE);
+	int i = 0;
+	for (i = 0; i < config.k - 1; i++) {
+		array[i] = array[i + 1];
 	}
+	array[i] = integer_to_insert;
 
-	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r"))
-			!= NULL) {
-		fprintf(stdout, "Sequence file opened properly\n");
+	DEBUG_SHIFT_AND_INSERT(
+			printf("shift_left_and_insert:: ending with array :                "); for (int i = 0; i < config.k; i++) {printf("%c", int2base(*(array + i)));}printf("\n"););
+}
 
-	} else {
-		fprintf(stderr, "Sequence file failed to open\n\n");
-		exit(EXIT_FAILURE);
-	}
-	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
-		fprintf(stdout, "Out file opened properly\n");
-		fprintf(config.out_file_pointer, "Sequence, Frequency\n");
-	} else {
-		fprintf(stderr, "Out file failed to open\n\n");
-		exit(EXIT_FAILURE);
-	}
+node_t * findKmer(node_t * headNode) {
+	unsigned long long baseCounter = 0;
+	bool inIdentifier = false;
+	int integerBuffer[MAX_LINE];
+	int *kmer = (int*) allocate_array(config.k, sizeof(int));
+	int i = 0;
+	//fill array.
+	while (i++ < config.k)
+		shift_left_and_insert(kmer, -1);
 
-	fprintf(stdout, "Reading sequence from file\n");
-
-	//variables for the nodes
-	node_t * headNode = NULL;
-
-	//extract valid sequences from file
-	unsigned long long sequenceNumber = 0;
-	int integerBuffer[MAX_LINE]; //todo commandline arg?
 	char c = 'A';
 	int seqSize = 0;
 	int codedBase = 0;
@@ -434,52 +450,72 @@ int main(int argc, char *argv[]) {
 
 	while (c != EOF) {
 		c = fgetc(config.sequence_file_pointer);
-		codedBase = base2int(c);
-		DEBUG(
-				cout << "Reading from file. \n"; cout << "The Base we found is " << c; cout << " which when coded is " << codedBase << "\n";);
+
+		/* if the below is true then we have found an identifier which has an entire line of non sequence data */
+		if (c == '>') {
+			fprintf(stdout, "Read %llu bases so far.\n%c", baseCounter,c);
+
+			while ((c = fgetc(config.sequence_file_pointer)) != '\n') {
+				fprintf(stdout, "%c", c);
+			}
+			fprintf(stdout, "\n");
+		}
 
 		//ignore newlines, but other invalid base data may be necessary to break the sequence, like > or numbers.
 		if (c != '\n') {
+			codedBase = base2int(c);
+			DEBUG(
+					cout << "Reading from file. \n"; cout << "The Base we found is " << c; cout << " which when coded is " << codedBase << "\n";);
 
-			//If the below is true then that means we have found a valid sequence that is either of k size or greater.
-			if (seqSize >= config.k && codedBase < 0) {
-				DEBUG(
-						cout << "!!!Found " << sequenceNumber << " valid sequences so far!!!" << endl; cout << seqSize << " Length Sequence Found \n";
-
-						for (int n = 0; n < seqSize; n++) cout << int2base(integerBuffer[n]); cout << endl;);
-
-				++sequenceNumber;
-				int* currentArrayPosition = integerBuffer;
-				//traverse the integer array and create a tree.
-				int stopPoint = seqSize - config.k + 1;
-				for (int i = 0; i < stopPoint; i++) {
-
-					DEBUG(
-							fprintf(stdout, "Extracting sequence: "); int z = 0; while (z < config.k) {fprintf(stdout, "%c ",int2base(*(currentArrayPosition + z)) ); z++;}fprintf(stdout, "\n"););
-
-					headNode = tree_create(headNode, currentArrayPosition++,
-							config.k + 1);
-				}
-
-			}
+			/* If the below is true then we have found an invalid base value thus we must break the sequence apart.
+			 * else we have found a valid base value
+			 */
 			if (codedBase < 0) {
 				seqSize = 0;
 			} else {
-				if (seqSize > MAX_LINE) {
-					fflush(stdout);
-					fprintf(stderr,
-							"\n!!!!Index %d has exceeded array bounds of %d\n",
-							seqSize, MAX_LINE);
-					fflush(stderr);
-				}
-				integerBuffer[seqSize] = codedBase;
+
+				/* Store the coded base into the kmer to be read later. */
+				shift_left_and_insert(kmer, codedBase);
 				seqSize++;
+				baseCounter++;
+
+				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.*/
+				if (seqSize >= config.k) {
+					headNode = tree_create(headNode, kmer, config.k + 1);
+				}
+//				else {
+//					fprintf(stdout, "Read %llu bases so far.\n", baseCounter);
+//				}
 			}
 		}
-
 	}
 
-	fprintf(stdout, "Found %d valid sequences.\n", sequenceNumber);
+	fprintf(stdout, "Found %llu valid bases.\n", baseCounter);
+	return headNode;
+}
+
+int main(int argc, char *argv[]) {
+
+	/* Deal with command line arguments */
+	DEBUG(
+			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
+				/* Next arg. */
+				currentArgument++;}fprintf(stdout, "\n");)
+	usage();
+	init_conf();
+	while (!parse_arguments(argc, argv))
+		usage();
+	print_conf();
+
+	/* Begin the procedure to extract valid sequences from file */
+	fprintf(stdout, "!!!Find The KMER!!!\n");
+	fprintf(stdout, "Reading sequence from file\n");
+	fprintf(stdout, "      2858658142 bases in the reference genome.\n That is 2,858,658,142");
+
+	/* variables for the root of the tree */
+	node_t * headNode = NULL;
+	headNode = findKmer(headNode);
+
 	fprintf(stdout, "Now creating histogram.\n");
 
 	//create a temporary array for the recursive function to keep as scratch memory to hold the sequence.
@@ -489,11 +525,14 @@ int main(int argc, char *argv[]) {
 		*(histogram_temp + i) = -1;
 	}
 
-	histo_and_free_recursive(headNode, histogram_temp, &config.k, 0);
-	deallocate_array((void**) &headNode);
+	/* print out the occurrence of every sequence of length k */
+	histo_recursive(headNode, histogram_temp, &config.k, 0);
+
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 	DEBUG(fprintf(stdout, "\n"));
-	cout << "histogram creation finished." << endl;
+	fprintf(stdout, "histogram creation finished.\n");
+
+	deallocate_array((void**) &headNode);
 
 	if (fclose(config.sequence_file_pointer) == EOF) {
 		fprintf(stderr,
@@ -505,6 +544,6 @@ int main(int argc, char *argv[]) {
 	}
 	cout << "Your file can be found in the current directory as: " << "\n    "
 			<< config.out_file << endl;
-	fprintf(stdout, "End of program\n");
+	fprintf(stdout, "End of program was reached properly.\n\n");
 	return 0;
 }
