@@ -58,13 +58,20 @@ using namespace std;
 
 //must be a string literal with file extension included.
 #define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
-#define DEFAULT_K_VALUE 1
+#define DEFAULT_K_VALUE 8
 
 #define MAX_LINE 1001
 #define DEBUG(x) //x
 #define DEBUG_TREE_CREATE(x) //x
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 #define DEBUG_SHIFT_AND_INSERT(x) //x
+
+
+
+struct statistics_t {
+	unsigned int Count;
+	unsigned int Probability;
+};
 
 /* Data structure for a tree. */
 struct node_t {
@@ -277,7 +284,7 @@ int base2int(char base) {
 	} else if (base == 'N') {
 		integer = -2;
 	} else if (base == EOF){
-
+		DEBUG(fprintf(stderr,"End of file \n"));
 	}else{
 		fprintf(stderr,"Unknown character %c processed! File may be corrupted.\n",base);
 	}
@@ -437,7 +444,7 @@ void shift_left_and_insert(int* array, int integer_to_insert) {
 			printf("shift_left_and_insert:: ending with array :                "); for (int i = 0; i < config.k; i++) {printf("%c", int2base(*(array + i)));}printf("\n"););
 }
 
-node_t * findKmer(node_t * headNode,unsigned long long baseCounter) {
+node_t * findKmer(node_t * headNode,unsigned long long *baseCounter,statistics_t *baseStatistics) {
 	bool inIdentifier = false;
 	int integerBuffer[MAX_LINE];
 	int *kmer = (int*) allocate_array(config.k, sizeof(int));
@@ -461,10 +468,10 @@ node_t * findKmer(node_t * headNode,unsigned long long baseCounter) {
 
 		/* if the below is true then we have found an identifier which has an entire line of non sequence data */
 		if (c == '>') {
-			fprintf(stdout, "Read %llu bases so far.\n%c", baseCounter,c);
+			fprintf(stdout, "Read %llu bases so far.\n%c", *baseCounter,c);
 
 			while ((c = fgetc(config.sequence_file_pointer)) != '\n') {
-				fprintf(stdout, "%c", c);
+				DEBUG(fprintf(stdout, "%c", c));
 			}
 			fprintf(stdout, "\n");
 		}
@@ -485,20 +492,26 @@ node_t * findKmer(node_t * headNode,unsigned long long baseCounter) {
 				/* Store the coded base into the kmer to be read later. */
 				shift_left_and_insert(kmer, codedBase);
 				seqSize++;
-				baseCounter++;
+
 
 				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.*/
 				if (seqSize >= config.k) {
 					headNode = tree_create(headNode, kmer, config.k );
+					(*baseCounter)++;
+					baseStatistics[codedBase].Count++;
+
 				}
-//				else {
-//					fprintf(stdout, "Read %llu bases so far.\n", baseCounter);
-//				}
 			}
 		}
 	}
 
-	fprintf(stdout, "Found %llu valid bases.\n", baseCounter);
+	//Statistics section Still needs to be verified and expanded.
+	fprintf(stdout, "Statistics: \n");
+	for(int i = 0; i<4; i++){
+		fprintf(stdout, "%c occured %u times.\n",int2base(i),baseStatistics[i].Count);
+	}
+
+	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n", *baseCounter);
 	return headNode;
 }
 
@@ -523,8 +536,9 @@ int main(int argc, char *argv[]) {
 	/* variables for the root of the tree */
 	node_t * headNode = NULL;
 	unsigned long long baseCounter = 0;
+	statistics_t baseStatistics[4];
 
-	headNode = findKmer(headNode,baseCounter);
+	headNode = findKmer(headNode,&baseCounter,baseStatistics);
 
 	fprintf(stdout, "Now creating histogram.\n");
 
