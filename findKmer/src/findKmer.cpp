@@ -57,8 +57,8 @@ using namespace std;
 #include <fstream> // basic file operations
 
 //must be a string literal with file extension included.
-#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
-#define DEFAULT_K_VALUE 8
+#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
+#define DEFAULT_K_VALUE 1
 
 #define MAX_LINE 1001
 #define DEBUG(x) //x
@@ -68,12 +68,12 @@ using namespace std;
 
 /* Data structure for a tree. */
 struct node_t {
-	int base;
+	unsigned short int base;
 	struct node_t *nextNodePtr[4];
 	unsigned int counter;
 };
 
-/* configuration */
+/* GLOBAL VARIABLES for configuration */
 static struct conf {
 	char *sequence_file;
 	FILE *sequence_file_pointer;
@@ -135,6 +135,11 @@ void set_default_conf() {
 
 	if (!config.k) {
 		config.k = DEFAULT_K_VALUE;
+	}
+
+	if (!config.k) {
+		fprintf(stdout,"k must be greater than zero. Ending program.\n\n");
+		exit(EXIT_FAILURE);
 	}
 
 	if (!config.out_file) {
@@ -271,8 +276,10 @@ int base2int(char base) {
 		integer = 2;
 	} else if (base == 'N') {
 		integer = -2;
-	} else{
-		fprintf(stderr,"Unknown character %c processed! File may be corrupted",base);
+	} else if (base == EOF){
+
+	}else{
+		fprintf(stderr,"Unknown character %c processed! File may be corrupted.\n",base);
 	}
 
 	//close the function
@@ -326,8 +333,9 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 	} else {
 		node->nextNodePtr[base]->counter++;
 		if (node->nextNodePtr[base] == 0) {
-			fprintf(stdout,
+			fprintf(stderr,
 					"!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable");
+			exit(EXIT_FAILURE);
 		}DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
 						node->nextNodePtr[base]->counter));
@@ -366,9 +374,10 @@ node_t* tree_create(node_t* head, int* array, int k) {
  * It will then free that node and work its way back, hopefully freeing every node as it goes along.
  * The implementation of freeing the tree is not implemented here.
  */
-void histo_recursive(node_t* head, int* array, int *k, int depth) {
+void histo_recursive(node_t* head, int* array, int depth) {
 	DEBUG_HISTO_AND_FREE_RECURSIVE(
 			fprintf(stdout, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
+
 	if (head == NULL) {
 		DEBUG_HISTO_AND_FREE_RECURSIVE(
 				fprintf(stdout, "histo_and_free::Head == NULL. Leaf found.\n"));
@@ -384,14 +393,14 @@ void histo_recursive(node_t* head, int* array, int *k, int depth) {
 		for (int i = 0; i < 4; i++) {
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
 					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
-			histo_recursive(head->nextNodePtr[i], array, k, depth + 1);
+			histo_recursive(head->nextNodePtr[i], array, depth + 1);
 			//free memory.
-			//deallocate_array((void**) &head->nextNodePtr[i]);
+			deallocate_array((void**) &head->nextNodePtr[i]);
 		}
 
-		if (depth == (*k)) {
+		if (depth == (config.k)) {
 			fputc('\n', config.out_file_pointer);
-			for (int i = 0; i < *k; i++) {
+			for (int i = 0; i < config.k; i++) {
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
 			}DEBUG(fprintf(stdout, ", %d\n", head->counter));
@@ -428,8 +437,7 @@ void shift_left_and_insert(int* array, int integer_to_insert) {
 			printf("shift_left_and_insert:: ending with array :                "); for (int i = 0; i < config.k; i++) {printf("%c", int2base(*(array + i)));}printf("\n"););
 }
 
-node_t * findKmer(node_t * headNode) {
-	unsigned long long baseCounter = 0;
+node_t * findKmer(node_t * headNode,unsigned long long baseCounter) {
 	bool inIdentifier = false;
 	int integerBuffer[MAX_LINE];
 	int *kmer = (int*) allocate_array(config.k, sizeof(int));
@@ -481,7 +489,7 @@ node_t * findKmer(node_t * headNode) {
 
 				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.*/
 				if (seqSize >= config.k) {
-					headNode = tree_create(headNode, kmer, config.k + 1);
+					headNode = tree_create(headNode, kmer, config.k );
 				}
 //				else {
 //					fprintf(stdout, "Read %llu bases so far.\n", baseCounter);
@@ -510,11 +518,13 @@ int main(int argc, char *argv[]) {
 	/* Begin the procedure to extract valid sequences from file */
 	fprintf(stdout, "!!!Find The KMER!!!\n");
 	fprintf(stdout, "Reading sequence from file\n");
-	fprintf(stdout, "      2858658142 bases in the reference genome.\n That is 2,858,658,142");
+	fprintf(stdout, "     2858658142 bases in the reference genome FYI.\nThat is 2,858,658,142\n");
 
 	/* variables for the root of the tree */
 	node_t * headNode = NULL;
-	headNode = findKmer(headNode);
+	unsigned long long baseCounter = 0;
+
+	headNode = findKmer(headNode,baseCounter);
 
 	fprintf(stdout, "Now creating histogram.\n");
 
@@ -526,7 +536,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* print out the occurrence of every sequence of length k */
-	histo_recursive(headNode, histogram_temp, &config.k, 0);
+	histo_recursive(headNode, histogram_temp, 0);
 
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 	DEBUG(fprintf(stdout, "\n"));

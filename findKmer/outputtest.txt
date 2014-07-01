@@ -1,0 +1,4 @@
+Sequence, Frequency
+CCACCTACAG, 5
+CCCACCTACA, 5
+CCCCACCTAC, 5
