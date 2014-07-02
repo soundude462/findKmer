@@ -60,7 +60,7 @@ using namespace std;
 #define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
 //#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
 //#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
-#define DEFAULT_K_VALUE 7
+#define DEFAULT_K_VALUE 3
 
 //This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
 #define COUNT_BASES_ONLY(x) x
@@ -75,7 +75,7 @@ using namespace std;
 //Holds the statistics for a base
 struct statistics_t {
 	unsigned int Count; //number of said base encountered.
-	unsigned int Probability; //probability that this base will be encountered out of all bases.
+	long double Probability; //probability that this base will be encountered out of all bases.
 };
 
 /* Data structure for a tree.
@@ -101,6 +101,64 @@ static struct conf {
 	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
 	int k; //holds the length of k for the size of the sequence to be recorded.
 } config; /* Config is a GLOBAL VARIABLE for configuration of file names, pointers, and length of k.*/
+
+extern int recurse_factorial(int i) {
+	if (i > 1)
+		return (i * recurse_factorial(i - 1));
+	else
+		return (1);
+}
+
+extern long double float_factorial(int i) {
+	int j;
+	long double val = 1.0;
+
+	if (i > 1) {
+		for (j = 2; j <= i; j++)
+			val = val * (long double) j;
+		return (val);
+	} else
+		return (1.0);
+}
+
+int n_choose_k(int n, int k)
+//Note that this function assumes that n choose k can be represented as the 32-bit int
+		{
+	int i, retval = 1, large_denom, small_denom;
+
+	if (k > (n - k)) {
+		large_denom = k;
+		small_denom = n - k;
+	} else {
+		large_denom = n - k;
+		small_denom = k;
+	}
+	for (i = n; i > large_denom; i--)
+		retval *= i;
+
+	retval = retval / recurse_factorial(small_denom);
+	return (retval);
+}
+
+long double float_n_choose_k(int n, unsigned int k) {
+	int i;
+	long double fretval = 1.0, large_denom, small_denom;
+
+	if (k > (n - k)) {
+		large_denom = k;
+		small_denom = n - k;
+	} else {
+		large_denom = n - k;
+		small_denom = k;
+	}
+	for (i = n; i > large_denom; i--) {
+		fretval = fretval * (long double) i;
+	}
+
+	fretval = fretval / float_factorial(small_denom);
+	return (fretval);
+
+}
 
 void *allocate_array(int size, size_t element_size) {
 	void *mem = malloc(size * element_size);
@@ -356,9 +414,9 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 		node->nextNodePtr[base]->counter++;
 		if (node->nextNodePtr[base]->counter == 0) {
 			fprintf(stderr,
-					"\n\n!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable.\n\n");
+					"\n\n!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable if you have the source code, else use a smaller sequence file.\n\n");
 			fprintf(stdout,
-					"\n\n!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable.\n\n");
+					"\n\n!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable if you have the source code, else use a smaller sequence file.\n\n");
 			exit(EXIT_FAILURE);
 		}DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
@@ -408,7 +466,8 @@ node_t* tree_create(node_t* head, int* array, int k,
  * It will then free that node and work its way back, hopefully freeing every node as it goes along.
  * The implementation of freeing the tree is not implemented here.
  */
-void histo_recursive(node_t* head, int* array, int depth, int k) {
+void histo_recursive(node_t* head, int* array, int depth, int k,
+		unsigned long long *baseCounter, statistics_t *baseStatistics) {
 	DEBUG_HISTO_AND_FREE_RECURSIVE(
 			fprintf(stdout, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
 
@@ -427,18 +486,45 @@ void histo_recursive(node_t* head, int* array, int depth, int k) {
 		for (int i = 0; i < 4; i++) {
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
 					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
-			histo_recursive(head->nextNodePtr[i], array, depth + 1, k);
+			histo_recursive(head->nextNodePtr[i], array, depth + 1, k,
+					baseCounter, baseStatistics);
 			//free memory.
 			deallocate_array((void**) &head->nextNodePtr[i]);
 		}
 
 		if (depth == (k)) {
+			unsigned int kmerBaseStatistics[4] = { 0 };
 			fputc('\n', config.out_file_pointer);
 			for (int i = 0; i < k; i++) {
+				kmerBaseStatistics[array[i]]++;
+
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
+
 			}DEBUG(fprintf(stdout, ", %d\n", head->counter));
+
 			fprintf(config.out_file_pointer, ", %d", head->counter);
+			double estimatedProportion = 1;
+			for(int i = 0; i < 4; i++){
+				cout << "baseStatistics[array[i]].Count == "<<baseStatistics[array[i]].Probability << " raised to the " << kmerBaseStatistics[array[i]] << endl;
+
+
+				cout << "baseStatistics[array[i]].Probability == " << pow((double)baseStatistics[array[i]].Probability,(double)kmerBaseStatistics[array[i]])<<endl;
+
+				estimatedProportion*= pow((double)baseStatistics[array[i]].Probability,(double)kmerBaseStatistics[array[i]]);
+			}
+
+
+
+				int TotalNumSequencesN = 10;
+
+				long double answer = float_n_choose_k(TotalNumSequencesN, head->counter);
+				cout << float_n_choose_k(TotalNumSequencesN, head->counter) << "   " << pow(1 - estimatedProportion, TotalNumSequencesN-head->counter) <<"   " <<  pow(estimatedProportion, head->counter)<<endl;
+				cout << float_n_choose_k(TotalNumSequencesN, head->counter) * pow(1 - estimatedProportion, TotalNumSequencesN-head->counter) * pow(estimatedProportion, head->counter) << endl;
+				fprintf(stderr," ");
+				exit(1);
+
+
 		}			//end if for reaching depth of k
 	}			//end else if for head == NULL
 }			//end histogram function.
@@ -525,18 +611,6 @@ node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 				shift_left_and_insert(kmer, codedBase);
 				seqSize++;
 
-				if (seqSize == config.k) {
-					headNode = tree_create(headNode, kmer, config.k,
-							baseStatistics);
-
-					DEBUG_STATISTICS(fprintf(stdout,"sequence size equals k, valid sequence found!\n"));
-					for (int i = 0; i < config.k; i++) {
-						baseStatistics[kmer[i]].Count++;
-						DEBUG_STATISTICS(fprintf(stdout,"i == %d, int2base(kmer[i]) == %c, baseStatistics[kmer[i]].Count == %d.\n",i, int2base(kmer[i]),baseStatistics[kmer[i]].Count));
-					} DEBUG_STATISTICS(fprintf(stdout,"\n"));
-					(*baseCounter) += seqSize;
-				}
-
 				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.
 				 * Create a tree data structure where each node is a base encountered.
 				 * We also keep track of the total number of bases and the number of each base encountered.
@@ -546,25 +620,52 @@ node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 							baseStatistics);
 					(*baseCounter)++;
 					baseStatistics[codedBase].Count++;
-				} //end detection of proper length for a kmer
+				} else if (seqSize == config.k) {
+					//this case will occur less often than seqSize > config.k so put it after in an else statement
+					headNode = tree_create(headNode, kmer, config.k,
+							baseStatistics);
+
+					DEBUG_STATISTICS(fprintf(stdout,"sequence size equals k, valid sequence found!\n"));
+					for (int i = 0; i < config.k; i++) {
+						baseStatistics[kmer[i]].Count++;
+						DEBUG_STATISTICS(fprintf(stdout,"i == %d, int2base(kmer[i]) == %c, baseStatistics[kmer[i]].Count == %d.\n",i, int2base(kmer[i]),baseStatistics[kmer[i]].Count));
+					}DEBUG_STATISTICS(fprintf(stdout,"\n"));
+					(*baseCounter) += seqSize;
+				}
 
 			} //end end of sequence detection.
 		} //end ignore newline character
 	} //end while loop to read the file.
 
+	return headNode;
+}
+
+void statistics(unsigned long long *baseCounter, statistics_t *baseStatistics) {
 	//Statistics section Still needs to be verified and expanded.
 	fprintf(stdout,
-			"Statistics of occurances of A, C, G and T respectivly: \n");
+			"Statistics of occurrences and probability of A, C, G and T respectively: \n");
 	for (int i = 0; i < 4; i++) {
-		fprintf(stdout, "%u\n", baseStatistics[i].Count);
+		DEBUG_STATISTICS(fprintf(stdout, "%u count / %llu baseCounter\n",baseStatistics[i].Count , *baseCounter));
+
+		fprintf(stdout, "%u", baseStatistics[i].Count);
+
+		baseStatistics[i].Probability = (double) baseStatistics[i].Count
+				/ *baseCounter;
+		if (baseStatistics[i].Probability == 0.0) {
+			fprintf(stdout, "Division overflow detected in statistics.\n");
+			exit(EXIT_FAILURE);
+		}
+
+		fprintf(stdout, ", %Lf\n", baseStatistics[i].Probability);
 	}
 
 	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
 			*baseCounter);
-	return headNode;
 }
 
 int main(int argc, char *argv[]) {
+
+
 	DEBUG(printf("sizeof(  int) = %lu\n",sizeof( int));
 			printf("sizeof( short int) = %lu\n",sizeof( short int));
 			printf("sizeof(unsigned short int) = %lu\n",sizeof(unsigned short int));
@@ -585,7 +686,7 @@ int main(int argc, char *argv[]) {
 	fprintf(stdout, "!!!Find The KMER!!!\n");
 	fprintf(stdout, "Reading sequence from file\n");
 	fprintf(stdout,
-			"     2858658142 bases in the reference genome FYI.\nThat is 2,858,658,142\n");
+			"     2858658142 bases in the reference genome FYI.\nThat is 2,858,658,142 by the way.\n");
 
 	/* variables for the root of the tree */
 	node_t * headNode = NULL;
@@ -593,6 +694,8 @@ int main(int argc, char *argv[]) {
 	statistics_t baseStatistics[4] = { 0 };
 
 	headNode = findKmer(headNode, &baseCounter, baseStatistics);
+
+	statistics(&baseCounter, baseStatistics);
 
 	fprintf(stdout, "Now creating histogram.\n");
 
@@ -604,7 +707,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* print out the occurrence of every sequence of length k */
-	histo_recursive(headNode, histogram_temp, 0,config.k);
+	histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
+			baseStatistics);
 
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 	DEBUG(fprintf(stdout, "\n"));
@@ -624,5 +728,6 @@ int main(int argc, char *argv[]) {
 			"Your file can be found in the current directory as: \n    %s\n",
 			config.out_file);
 	fprintf(stdout, "End of program was reached properly.\n\n");
+	fprintf(stderr, " "); //simply to trigger error to notify the user that we are done.
 	return 0;
 }
