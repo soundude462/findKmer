@@ -57,25 +57,31 @@ using namespace std;
 #include <fstream> // basic file operations
 
 //must be a string literal with file extension included.
-#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
-#define DEFAULT_K_VALUE 1
+#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
+#define DEFAULT_K_VALUE 10
 
-#define MAX_LINE 1001
+//This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
+#define COUNT_BASES_ONLY(x) x
+
+//debugging
 #define DEBUG(x) //x
 #define DEBUG_TREE_CREATE(x) //x
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 #define DEBUG_SHIFT_AND_INSERT(x) //x
+#define DEBUG_STATISTICS(x) //x
 
+//Holds the statistics for a base
 struct statistics_t {
-	unsigned int Count;
-	unsigned int Probability;
+	unsigned int Count; //number of said base encountered.
+	unsigned int Probability; //probability that this base will be encountered out of all bases.
 };
 
 /* Data structure for a tree.
  * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
  * holds the ranges of each data type.
- * The max occurrence of all bases in the human genome is
- * 2,858,658,142 bases which is less than a signed int
+ * The number of bases in the human genome is
+ * 2,858,658,142 bases which is less than a signed int.
+ * Unsigned int has a range of 4,294,967,295
  * Unsigned char is used for the base even though the
  * program treats it as an int elsewhere to save space.
  */
@@ -85,14 +91,14 @@ struct node_t {
 	unsigned int counter;
 };
 
-/* GLOBAL VARIABLES for configuration */
+/* structure definition for configuration of file names, pointers, and length of k.*/
 static struct conf {
-	char *sequence_file;
-	FILE *sequence_file_pointer;
-	char *out_file;
-	FILE *out_file_pointer;
-	int k;
-} config;
+	char *sequence_file; //holds the string representation of the file name.
+	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
+	char *out_file;		//holds the string representation of the file name.
+	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
+	int k; //holds the length of k for the size of the sequence to be recorded.
+} config; /* Config is a GLOBAL VARIABLE for configuration of file names, pointers, and length of k.*/
 
 void *allocate_array(int size, size_t element_size) {
 	void *mem = malloc(size * element_size);
@@ -348,10 +354,11 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 		node->nextNodePtr[base]->counter++;
 		if (node->nextNodePtr[base]->counter == 0) {
 			fprintf(stderr,
-					"!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable");
+					"\n\n!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable.\n\n");
+			fprintf(stdout,
+					"\n\n!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable.\n\n");
 			exit(EXIT_FAILURE);
-		}
-		DEBUG_TREE_CREATE(
+		}DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
 						node->nextNodePtr[base]->counter));
 	}DEBUG_TREE_CREATE(fprintf(stdout, "..returning next base pointer.\n"));
@@ -366,16 +373,26 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
  *
  *
  */
-node_t* tree_create(node_t* head, int* array, int k) {
+node_t* tree_create(node_t* head, int* array, int k,
+		statistics_t *baseStatistics) {
 	if (array != NULL) {
 		if (head == NULL) {
 			DEBUG_TREE_CREATE(fprintf(stdout, "-Creating the head of the tree!\n"));
 			head = node_create('H');
 		}
 		node_t *currentNode = head;
+
+		/*
+		 * Traverse the given integer array that is of k size.
+		 * For each base within the integer array, create a node and enter the created node.
+		 * Also record how often each base (A, C, G or T).
+		 */
 		for (int i = 0; i < k; i++) {
 			DEBUG_TREE_CREATE(fprintf(stdout, "-Moving into a branch on depth %d\n", i));
-			currentNode = node_branch_enter_and_create(currentNode, array[i]);
+			COUNT_BASES_ONLY(
+					currentNode = node_branch_enter_and_create(currentNode,
+							array[i]));
+
 		}
 	}
 	return head;
@@ -432,7 +449,6 @@ void random_array(int sizeOfArray) {
 	srand(time(NULL)); //seeding the random function.
 	for (int i = 0; i < sizeOfArray; i++) {
 		*currentArrayPosition = (rand() % 4);
-		//fprintf(stdout, " currentArrayPosition %d has == %d\n", i,	*currentArrayPosition);
 		currentArrayPosition++;
 	}
 	deallocate_array((void**) &array);
@@ -454,16 +470,20 @@ void shift_left_and_insert(int* array, int integer_to_insert) {
 
 node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 		statistics_t *baseStatistics) {
-	bool inIdentifier = false;
-	int integerBuffer[MAX_LINE];
+
+	// Array to hold the kmer of size k. This ensures that we can hold each sequence, but requires the shifting of data in the array.
 	int *kmer = (int*) allocate_array(config.k, sizeof(int));
 	int i = 0;
-	//fill array.
+
+	//fill array by inserting a negative one and testing the functionality of the shift function.
 	while (i++ < config.k)
 		shift_left_and_insert(kmer, -1);
 
+	//stores the character read in from the file.
 	char c = 'A';
+	//holds the size of the current sequence. NATTAN would have seqSize 4 before the N was encountered to reset it.
 	int seqSize = 0;
+	//stores the coded value of the character read from the file. 0-3 are valid, else invalid base.
 	int codedBase = 0;
 
 	if (fgetc(config.sequence_file_pointer) == EOF) {
@@ -483,6 +503,7 @@ node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 				fprintf(stdout, "%c", c);
 			}
 			fprintf(stdout, "\n");
+			seqSize = 0;
 		}
 
 		//ignore newlines, but other invalid base data may be necessary to break the sequence, like > or numbers.
@@ -502,16 +523,33 @@ node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 				shift_left_and_insert(kmer, codedBase);
 				seqSize++;
 
-				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.*/
-				if (seqSize >= config.k) {
-					headNode = tree_create(headNode, kmer, config.k);
+				if (seqSize == config.k) {
+					headNode = tree_create(headNode, kmer, config.k,
+							baseStatistics);
+
+					DEBUG_STATISTICS(fprintf(stdout,"sequence size equals k, valid sequence found!\n"));
+					for (int i = 0; i < config.k; i++) {
+						baseStatistics[kmer[i]].Count++;
+						DEBUG_STATISTICS(fprintf(stdout,"i == %d, int2base(kmer[i]) == %c, baseStatistics[kmer[i]].Count == %d.\n",i, int2base(kmer[i]),baseStatistics[kmer[i]].Count));
+					}
+					DEBUG_STATISTICS(fprintf(stdout,"\n"));
+					(*baseCounter)+= seqSize;
+				}
+
+				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.
+				 * Create a tree data structure where each node is a base encountered.
+				 * We also keep track of the total number of bases and the number of each base encountered.
+				 */
+				if (seqSize > config.k) {
+					headNode = tree_create(headNode, kmer, config.k,
+							baseStatistics);
 					(*baseCounter)++;
 					baseStatistics[codedBase].Count++;
+				} //end detection of proper length for a kmer
 
-				}
-			}
-		}
-	}
+			} //end end of sequence detection.
+		} //end ignore newline character
+	} //end while loop to read the file.
 
 	//Statistics section Still needs to be verified and expanded.
 	fprintf(stdout, "Statistics: \n");
@@ -551,7 +589,7 @@ int main(int argc, char *argv[]) {
 	/* variables for the root of the tree */
 	node_t * headNode = NULL;
 	unsigned long long baseCounter = 0;
-	statistics_t baseStatistics[4];
+	statistics_t baseStatistics[4] = { 0 };
 
 	headNode = findKmer(headNode, &baseCounter, baseStatistics);
 
