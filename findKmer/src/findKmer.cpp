@@ -57,8 +57,8 @@ using namespace std;
 #include <fstream> // basic file operations
 
 //must be a string literal with file extension included.
-#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
-#define DEFAULT_K_VALUE 8
+#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
+#define DEFAULT_K_VALUE 1
 
 #define MAX_LINE 1001
 #define DEBUG(x) //x
@@ -66,16 +66,21 @@ using namespace std;
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 #define DEBUG_SHIFT_AND_INSERT(x) //x
 
-
-
 struct statistics_t {
 	unsigned int Count;
 	unsigned int Probability;
 };
 
-/* Data structure for a tree. */
+/* Data structure for a tree.
+ * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
+ * holds the ranges of each data type.
+ * The max occurrence of all bases in the human genome is
+ * 2,858,658,142 bases which is less than a signed int
+ * Unsigned char is used for the base even though the
+ * program treats it as an int elsewhere to save space.
+ */
 struct node_t {
-	unsigned short int base;
+	unsigned char base;
 	struct node_t *nextNodePtr[4];
 	unsigned int counter;
 };
@@ -145,7 +150,7 @@ void set_default_conf() {
 	}
 
 	if (!config.k) {
-		fprintf(stdout,"k must be greater than zero. Ending program.\n\n");
+		fprintf(stdout, "k must be greater than zero. Ending program.\n\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -283,10 +288,12 @@ int base2int(char base) {
 		integer = 2;
 	} else if (base == 'N') {
 		integer = -2;
-	} else if (base == EOF){
+	} else if (base == EOF) {
 		DEBUG(fprintf(stderr,"End of file \n"));
-	}else{
-		fprintf(stderr,"Unknown character %c processed! File may be corrupted.\n",base);
+	} else {
+		fprintf(stderr,
+				"Unknown character %c processed! File may be corrupted.\n",
+				base);
 	}
 
 	//close the function
@@ -339,11 +346,12 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 		node->nextNodePtr[base] = node_create(base);
 	} else {
 		node->nextNodePtr[base]->counter++;
-		if (node->nextNodePtr[base] == 0) {
+		if (node->nextNodePtr[base]->counter == 0) {
 			fprintf(stderr,
 					"!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable");
 			exit(EXIT_FAILURE);
-		}DEBUG_TREE_CREATE(
+		}
+		DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
 						node->nextNodePtr[base]->counter));
 	}DEBUG_TREE_CREATE(fprintf(stdout, "..returning next base pointer.\n"));
@@ -444,7 +452,8 @@ void shift_left_and_insert(int* array, int integer_to_insert) {
 			printf("shift_left_and_insert:: ending with array :                "); for (int i = 0; i < config.k; i++) {printf("%c", int2base(*(array + i)));}printf("\n"););
 }
 
-node_t * findKmer(node_t * headNode,unsigned long long *baseCounter,statistics_t *baseStatistics) {
+node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
+		statistics_t *baseStatistics) {
 	bool inIdentifier = false;
 	int integerBuffer[MAX_LINE];
 	int *kmer = (int*) allocate_array(config.k, sizeof(int));
@@ -468,10 +477,10 @@ node_t * findKmer(node_t * headNode,unsigned long long *baseCounter,statistics_t
 
 		/* if the below is true then we have found an identifier which has an entire line of non sequence data */
 		if (c == '>') {
-			fprintf(stdout, "Read %llu bases so far.\n%c", *baseCounter,c);
+			fprintf(stdout, "Read %llu bases so far.\n%c", *baseCounter, c);
 
 			while ((c = fgetc(config.sequence_file_pointer)) != '\n') {
-				DEBUG(fprintf(stdout, "%c", c));
+				fprintf(stdout, "%c", c);
 			}
 			fprintf(stdout, "\n");
 		}
@@ -493,10 +502,9 @@ node_t * findKmer(node_t * headNode,unsigned long long *baseCounter,statistics_t
 				shift_left_and_insert(kmer, codedBase);
 				seqSize++;
 
-
 				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.*/
 				if (seqSize >= config.k) {
-					headNode = tree_create(headNode, kmer, config.k );
+					headNode = tree_create(headNode, kmer, config.k);
 					(*baseCounter)++;
 					baseStatistics[codedBase].Count++;
 
@@ -507,15 +515,21 @@ node_t * findKmer(node_t * headNode,unsigned long long *baseCounter,statistics_t
 
 	//Statistics section Still needs to be verified and expanded.
 	fprintf(stdout, "Statistics: \n");
-	for(int i = 0; i<4; i++){
-		fprintf(stdout, "%c occured %u times.\n",int2base(i),baseStatistics[i].Count);
+	for (int i = 0; i < 4; i++) {
+		fprintf(stdout, "%c occurred %u times.\n", int2base(i),
+				baseStatistics[i].Count);
 	}
 
-	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n", *baseCounter);
+	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
+			*baseCounter);
 	return headNode;
 }
 
 int main(int argc, char *argv[]) {
+	DEBUG(printf("sizeof(  int) = %lu\n",sizeof( int));
+			printf("sizeof( short int) = %lu\n",sizeof( short int));
+			printf("sizeof(unsigned short int) = %lu\n",sizeof(unsigned short int));
+			printf("sizeof(char) = %lu\n",sizeof(char)));
 
 	/* Deal with command line arguments */
 	DEBUG(
@@ -531,14 +545,15 @@ int main(int argc, char *argv[]) {
 	/* Begin the procedure to extract valid sequences from file */
 	fprintf(stdout, "!!!Find The KMER!!!\n");
 	fprintf(stdout, "Reading sequence from file\n");
-	fprintf(stdout, "     2858658142 bases in the reference genome FYI.\nThat is 2,858,658,142\n");
+	fprintf(stdout,
+			"     2858658142 bases in the reference genome FYI.\nThat is 2,858,658,142\n");
 
 	/* variables for the root of the tree */
 	node_t * headNode = NULL;
 	unsigned long long baseCounter = 0;
 	statistics_t baseStatistics[4];
 
-	headNode = findKmer(headNode,&baseCounter,baseStatistics);
+	headNode = findKmer(headNode, &baseCounter, baseStatistics);
 
 	fprintf(stdout, "Now creating histogram.\n");
 
@@ -566,8 +581,9 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr,
 				"Out file close error! This is not expected and might mean the data was not written to the file properly before the close.\n");
 	}
-	cout << "Your file can be found in the current directory as: " << "\n    "
-			<< config.out_file << endl;
+	fprintf(stdout,
+			"Your file can be found in the current directory as: \n    %s\n",
+			config.out_file);
 	fprintf(stdout, "End of program was reached properly.\n\n");
 	return 0;
 }
