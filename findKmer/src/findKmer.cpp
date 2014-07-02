@@ -39,7 +39,7 @@
 // Copyright   : Do not copy
 // Description : This code uses k which is a ones count for the length of a sequence to be found in DNA.
 // Expects     : The parse file is to be formatted in this way:
-//                 '>' designates the beginning of an ID and newlines ('\n') designates the end
+//                 '>' designates the beginning of an ID and newlines ('\n') designates the end of an ID
 //                 Newlines ('\n') are otherwise ignored completely
 //                 Sequences are broken by any letter (other than A, C, T or G)
 //                 The letter N is a known letter that occurs in a sequence and is designated as the end of a sequence if found.
@@ -58,7 +58,9 @@ using namespace std;
 
 //must be a string literal with file extension included.
 #define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
-#define DEFAULT_K_VALUE 10
+//#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
+//#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
+#define DEFAULT_K_VALUE 7
 
 //This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
 #define COUNT_BASES_ONLY(x) x
@@ -406,7 +408,7 @@ node_t* tree_create(node_t* head, int* array, int k,
  * It will then free that node and work its way back, hopefully freeing every node as it goes along.
  * The implementation of freeing the tree is not implemented here.
  */
-void histo_recursive(node_t* head, int* array, int depth) {
+void histo_recursive(node_t* head, int* array, int depth, int k) {
 	DEBUG_HISTO_AND_FREE_RECURSIVE(
 			fprintf(stdout, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
 
@@ -425,14 +427,14 @@ void histo_recursive(node_t* head, int* array, int depth) {
 		for (int i = 0; i < 4; i++) {
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
 					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
-			histo_recursive(head->nextNodePtr[i], array, depth + 1);
+			histo_recursive(head->nextNodePtr[i], array, depth + 1, k);
 			//free memory.
 			deallocate_array((void**) &head->nextNodePtr[i]);
 		}
 
-		if (depth == (config.k)) {
+		if (depth == (k)) {
 			fputc('\n', config.out_file_pointer);
-			for (int i = 0; i < config.k; i++) {
+			for (int i = 0; i < k; i++) {
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
 			}DEBUG(fprintf(stdout, ", %d\n", head->counter));
@@ -531,9 +533,8 @@ node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 					for (int i = 0; i < config.k; i++) {
 						baseStatistics[kmer[i]].Count++;
 						DEBUG_STATISTICS(fprintf(stdout,"i == %d, int2base(kmer[i]) == %c, baseStatistics[kmer[i]].Count == %d.\n",i, int2base(kmer[i]),baseStatistics[kmer[i]].Count));
-					}
-					DEBUG_STATISTICS(fprintf(stdout,"\n"));
-					(*baseCounter)+= seqSize;
+					} DEBUG_STATISTICS(fprintf(stdout,"\n"));
+					(*baseCounter) += seqSize;
 				}
 
 				/* If the below is true then that means we have found a valid sequence that is either of k size or greater.
@@ -552,10 +553,10 @@ node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 	} //end while loop to read the file.
 
 	//Statistics section Still needs to be verified and expanded.
-	fprintf(stdout, "Statistics: \n");
+	fprintf(stdout,
+			"Statistics of occurances of A, C, G and T respectivly: \n");
 	for (int i = 0; i < 4; i++) {
-		fprintf(stdout, "%c occurred %u times.\n", int2base(i),
-				baseStatistics[i].Count);
+		fprintf(stdout, "%u\n", baseStatistics[i].Count);
 	}
 
 	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
@@ -603,7 +604,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* print out the occurrence of every sequence of length k */
-	histo_recursive(headNode, histogram_temp, 0);
+	histo_recursive(headNode, histogram_temp, 0,config.k);
 
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 	DEBUG(fprintf(stdout, "\n"));
