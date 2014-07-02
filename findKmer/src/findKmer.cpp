@@ -495,7 +495,12 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 		if (depth == (k)) {
 			unsigned int kmerBaseStatistics[4] = { 0 };
 			fputc('\n', config.out_file_pointer);
+
+			cout << "traversing kmer" << endl;
 			for (int i = 0; i < k; i++) {
+				cout << "i == " << i << endl;
+				cout << "array[i] == "<< array[i]<< endl;
+				cout << "kmerBaseStatistics[array[i]] == " << kmerBaseStatistics[array[i]] << endl;
 				kmerBaseStatistics[array[i]]++;
 
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
@@ -506,17 +511,16 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 			fprintf(config.out_file_pointer, ", %d", head->counter);
 			double estimatedProportion = 1;
 			for(int i = 0; i < 4; i++){
-				cout << "baseStatistics[array[i]].Count == "<<baseStatistics[array[i]].Probability << " raised to the " << kmerBaseStatistics[array[i]] << endl;
+				estimatedProportion *= pow((double)baseStatistics[i].Probability,(double)kmerBaseStatistics[i]);
 
+				cout << "baseStatistics[array[i]].Probability == "<<baseStatistics[i].Probability << " raised to the " << kmerBaseStatistics[i] << "  == kmerBaseStatistics[i]"<< endl;
 
-				cout << "baseStatistics[array[i]].Probability == " << pow((double)baseStatistics[array[i]].Probability,(double)kmerBaseStatistics[array[i]])<<endl;
-
-				estimatedProportion*= pow((double)baseStatistics[array[i]].Probability,(double)kmerBaseStatistics[array[i]]);
+				cout << "estimatedProportion so far == " << estimatedProportion<<endl;
 			}
 
 
 
-				int TotalNumSequencesN = 10;
+				int TotalNumSequencesN = 10000;
 
 				long double answer = float_n_choose_k(TotalNumSequencesN, head->counter);
 				cout << float_n_choose_k(TotalNumSequencesN, head->counter) << "   " << pow(1 - estimatedProportion, TotalNumSequencesN-head->counter) <<"   " <<  pow(estimatedProportion, head->counter)<<endl;
