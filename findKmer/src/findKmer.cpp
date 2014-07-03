@@ -60,7 +60,7 @@ using namespace std;
 #define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
 //#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
 //#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
-#define DEFAULT_K_VALUE 3
+#define DEFAULT_K_VALUE 8
 
 //This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
 #define COUNT_BASES_ONLY(x) x
@@ -90,7 +90,7 @@ struct statistics_t {
 struct node_t {
 	unsigned char base;
 	struct node_t *nextNodePtr[4];
-	unsigned int counter;
+	unsigned int frequency;
 };
 
 /* structure definition for configuration of file names, pointers, and length of k.*/
@@ -158,6 +158,23 @@ long double float_n_choose_k(int n, unsigned int k) {
 	fretval = fretval / float_factorial(small_denom);
 	return (fretval);
 
+}
+
+bool normal_approx_check(int n, double p, double q){
+	bool pass = true;
+
+	if(n*p >= 5){
+		pass = true;
+	}else{
+		pass = false;
+	}
+
+	if(n*q >= 5){
+		pass = true;
+	}else{
+		pass = false;
+	}
+	return pass;
 }
 
 void *allocate_array(int size, size_t element_size) {
@@ -391,7 +408,7 @@ char int2base(int integer) {
 node_t* node_create(int base) {
 	node_t* node = (node_t*) allocate_array(1, sizeof(node_t));
 	node->base = base;
-	node->counter = 1;
+	node->frequency = 1;
 	node->nextNodePtr[0] = NULL;
 	node->nextNodePtr[1] = NULL;
 	node->nextNodePtr[2] = NULL;
@@ -411,8 +428,8 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 		DEBUG_TREE_CREATE(fprintf(stdout, "***Creating Node.\n"));
 		node->nextNodePtr[base] = node_create(base);
 	} else {
-		node->nextNodePtr[base]->counter++;
-		if (node->nextNodePtr[base]->counter == 0) {
+		node->nextNodePtr[base]->frequency++;
+		if (node->nextNodePtr[base]->frequency == 0) {
 			fprintf(stderr,
 					"\n\n!!! COUNTER ROLLOVER DETECTED! \nIncrease the number of bits used for the counter variable if you have the source code, else use a smaller sequence file.\n\n");
 			fprintf(stdout,
@@ -420,7 +437,7 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 			exit(EXIT_FAILURE);
 		}DEBUG_TREE_CREATE(
 				fprintf(stdout, "+++Incrementing counter to %d.\n",
-						node->nextNodePtr[base]->counter));
+						node->nextNodePtr[base]->frequency));
 	}DEBUG_TREE_CREATE(fprintf(stdout, "..returning next base pointer.\n"));
 	return node->nextNodePtr[base];
 }
@@ -467,7 +484,8 @@ node_t* tree_create(node_t* head, int* array, int k,
  * The implementation of freeing the tree is not implemented here.
  */
 void histo_recursive(node_t* head, int* array, int depth, int k,
-		unsigned long long *baseCounter, statistics_t *baseStatistics) {
+		unsigned long long *baseCounter, statistics_t *baseStatistics,
+		unsigned long long *TotalNumSequencesN) {
 	DEBUG_HISTO_AND_FREE_RECURSIVE(
 			fprintf(stdout, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
 
@@ -487,7 +505,7 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
 					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
 			histo_recursive(head->nextNodePtr[i], array, depth + 1, k,
-					baseCounter, baseStatistics);
+					baseCounter, baseStatistics, TotalNumSequencesN);
 			//free memory.
 			deallocate_array((void**) &head->nextNodePtr[i]);
 		}
@@ -499,35 +517,63 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 			cout << "traversing kmer" << endl;
 			for (int i = 0; i < k; i++) {
 				cout << "i == " << i << endl;
-				cout << "array[i] == "<< array[i]<< endl;
-				cout << "kmerBaseStatistics[array[i]] == " << kmerBaseStatistics[array[i]] << endl;
+				cout << "array[i] == " << array[i] << endl;
+				cout << "kmerBaseStatistics[array[i]] == "
+						<< kmerBaseStatistics[array[i]] << endl;
 				kmerBaseStatistics[array[i]]++;
 
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
 
-			}DEBUG(fprintf(stdout, ", %d\n", head->counter));
+			}DEBUG(fprintf(stdout, ", %d\n", head->frequency));
 
-			fprintf(config.out_file_pointer, ", %d", head->counter);
+			fprintf(config.out_file_pointer, ", %d", head->frequency);
 			double estimatedProportion = 1;
-			for(int i = 0; i < 4; i++){
-				estimatedProportion *= pow((double)baseStatistics[i].Probability,(double)kmerBaseStatistics[i]);
+			for (int i = 0; i < 4; i++) {
+				estimatedProportion *= pow(
+						(double) baseStatistics[i].Probability,
+						(double) kmerBaseStatistics[i]);
 
-				cout << "baseStatistics[i].Probability == "<<baseStatistics[i].Probability << " raised to the " << kmerBaseStatistics[i] << "  == kmerBaseStatistics[i]"<< endl;
+				cout << "baseStatistics[i].Probability == "
+						<< baseStatistics[i].Probability << " raised to the "
+						<< kmerBaseStatistics[i] << "  == kmerBaseStatistics[i]"
+						<< endl;
 
-				cout << "estimatedProportion so far == " << estimatedProportion<<endl;
+				cout << "estimatedProportion so far == " << estimatedProportion
+						<< endl;
 			}
 
+			long double answer = float_n_choose_k(*TotalNumSequencesN,
+					head->frequency);
+			long double binomialDistribution = answer
+					* pow((double) 1 - estimatedProportion,
+							(double) (*TotalNumSequencesN) - head->frequency)
+					* pow((double) estimatedProportion,
+							(double) head->frequency);
+			fprintf(config.out_file_pointer, ", %Le", binomialDistribution);
 
+			cout
+					<< "float_n_choose_k(TotalNumSequencesN, head->frequency) == float_n_choose_k( "
+					<< (*TotalNumSequencesN) << ", " << head->frequency << endl;
 
-				int TotalNumSequencesN = 10000;
+			cout << float_n_choose_k((*TotalNumSequencesN), head->frequency)
+					<< "   "
+					<< pow((double) 1 - estimatedProportion,
+							(double) (*TotalNumSequencesN) - head->frequency)
+					<< "   "
+					<< pow((double) estimatedProportion,
+							(double) head->frequency) << endl;
 
-				long double answer = float_n_choose_k(TotalNumSequencesN, head->counter);
-				cout << float_n_choose_k(TotalNumSequencesN, head->counter) << "   " << pow(1 - estimatedProportion, TotalNumSequencesN-head->counter) <<"   " <<  pow(estimatedProportion, head->counter)<<endl;
-				cout << float_n_choose_k(TotalNumSequencesN, head->counter) * pow(1 - estimatedProportion, TotalNumSequencesN-head->counter) * pow(estimatedProportion, head->counter) << endl;
-				fprintf(stderr," ");
-				exit(1);
+			cout
+					<< float_n_choose_k((*TotalNumSequencesN), head->frequency)
+							* pow((double) 1 - estimatedProportion,
+									(double) (*TotalNumSequencesN)
+											- head->frequency)
+							* pow((double) estimatedProportion,
+									(double) head->frequency) << endl;
 
+			fprintf(stderr, " ");
+			exit(1);
 
 		}			//end if for reaching depth of k
 	}			//end else if for head == NULL
@@ -561,7 +607,7 @@ void shift_left_and_insert(int* array, int integer_to_insert) {
 }
 
 node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
-		statistics_t *baseStatistics) {
+		statistics_t *baseStatistics, unsigned long long *TotalNumSequencesN) {
 
 	// Array to hold the kmer of size k. This ensures that we can hold each sequence, but requires the shifting of data in the array.
 	int *kmer = (int*) allocate_array(config.k, sizeof(int));
@@ -624,17 +670,21 @@ node_t * findKmer(node_t * headNode, unsigned long long *baseCounter,
 							baseStatistics);
 					(*baseCounter)++;
 					baseStatistics[codedBase].Count++;
+					(*TotalNumSequencesN)++;
 				} else if (seqSize == config.k) {
 					//this case will occur less often than seqSize > config.k so put it after in an else statement
 					headNode = tree_create(headNode, kmer, config.k,
 							baseStatistics);
 
 					DEBUG_STATISTICS(fprintf(stdout,"sequence size equals k, valid sequence found!\n"));
+
 					for (int i = 0; i < config.k; i++) {
 						baseStatistics[kmer[i]].Count++;
 						DEBUG_STATISTICS(fprintf(stdout,"i == %d, int2base(kmer[i]) == %c, baseStatistics[kmer[i]].Count == %d.\n",i, int2base(kmer[i]),baseStatistics[kmer[i]].Count));
+
 					}DEBUG_STATISTICS(fprintf(stdout,"\n"));
 					(*baseCounter) += seqSize;
+					(*TotalNumSequencesN)++;
 				}
 
 			} //end end of sequence detection.
@@ -665,11 +715,144 @@ void statistics(unsigned long long *baseCounter, statistics_t *baseStatistics) {
 
 	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
 			*baseCounter);
+	return;
+
 }
 
+void scratch_function() {
+
+	{
+		cout << "simple binomial dist " << endl;
+		int n = 10;
+		int x = 4;
+		double p = 1.0 / 5.0;
+		double q = 1-p;
+		double standardDev = sqrt(n*p*q);	//standard deviation
+		double median = n*p;
+		double z = (x-median) / standardDev;
+
+		cout << float_n_choose_k(n, x) << "   "
+				<< pow((double) 1 - p, (double) n - x) << "   "
+				<< pow((double) p, (double) x) << endl;
+		cout
+				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
+						* pow((double) p, (double) x) << endl;
+		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		cout << " normal distribution possible? " << canDoNormalApprox << endl;
+		if(canDoNormalApprox == true){
+			cout << z << " == the z score " << endl;
+		}
+	}
+	{
+		cout << "simple binomial dist " << endl;
+		int n = 7;
+		int x = 4;
+		double p = 0.9;
+
+		double q = 1-p;
+		double standardDev = sqrt(n*p*q);	//standard deviation
+		double median = n*p;
+		double z = (x-median) / standardDev;
+
+		cout << float_n_choose_k(n, x) << "   "
+				<< pow((double) 1 - p, (double) n - x) << "   "
+				<< pow((double) p, (double) x) << endl;
+		cout
+				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
+						* pow((double) p, (double) x) << endl;
+		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		cout << " normal distribution possible? " << canDoNormalApprox << endl;
+		if(canDoNormalApprox == true){
+			cout << z << " == the z score " << endl;
+		}
+
+	}
+
+	{
+		cout << "AAA in a 3mer of uptstreams binomial dist calculation "
+				<< endl;
+		int n = 90148375;
+		int x = 2645164;
+		double p = 0.0166418;
+		double q = 1-p;
+		double standardDev = sqrt(n*p*q);	//standard deviation
+		double median = n*p;
+		double z = (x-median) / standardDev;
+
+		cout << float_n_choose_k(n, x) << "   "
+				<< pow((double) 1 - p, (double) n - x) << "   "
+				<< pow((double) p, (double) x) << endl;
+		cout
+				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
+						* pow((double) p, (double) x) << endl;
+		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		cout << " normal distribution possible? " << canDoNormalApprox << endl;
+		if(canDoNormalApprox == true){
+			cout << z << " == the z score " << endl;
+		}
+	}
+
+	{
+		cout << "3mer normal distribution to approximate a binomial prob. distribution."
+				<< endl;
+		int n = 90148375;
+		int x = 2645164;
+		double p = 0.0166418;
+
+		double q = 1-p;
+		double standardDev = sqrt(n*p*q);	//standard deviation
+		double median = n*p;
+		double z = (x-median) / standardDev;
+
+		cout << float_n_choose_k(n, x) << "   "
+				<< pow((double) 1 - p, (double) n - x) << "   "
+				<< pow((double) p, (double) x) << endl;
+		cout
+				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
+						* pow((double) p, (double) x) << endl;
+		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		cout << " normal distribution possible? " << canDoNormalApprox << endl;
+		if(canDoNormalApprox == true){
+			cout << z << " == the z score " << endl;
+		}
+
+
+	}
+	{
+		cout << "8mer all A's normal distribution to approximate a binomial prob. distribution."
+				<< endl;
+		int n = 89697072;
+		int x = 151071;
+		double p = 1.80524e-05;
+
+		double q = 1-p;
+		double standardDev = sqrt(n*p*q);	//standard deviation
+		double median = n*p;
+		double z = (x-median) / standardDev;
+
+		cout << float_n_choose_k(n, x) << "   "
+				<< pow((double) 1 - p, (double) n - x) << "   "
+				<< pow((double) p, (double) x) << endl;
+		cout
+				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
+						* pow((double) p, (double) x) << endl;
+		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		cout << " normal distribution possible? " << canDoNormalApprox << endl;
+		if(canDoNormalApprox == true){
+			cout << z << " == the z score " << endl;
+		}
+
+
+	}
+
+
+	fprintf(stderr, " ");
+	exit(1);
+}
+
+
 int main(int argc, char *argv[]) {
-
-
+	//scratch_function();
 	DEBUG(printf("sizeof(  int) = %lu\n",sizeof( int));
 			printf("sizeof( short int) = %lu\n",sizeof( short int));
 			printf("sizeof(unsigned short int) = %lu\n",sizeof(unsigned short int));
@@ -695,9 +878,11 @@ int main(int argc, char *argv[]) {
 	/* variables for the root of the tree */
 	node_t * headNode = NULL;
 	unsigned long long baseCounter = 0;
+	unsigned long long TotalNumSequencesN = 0;
 	statistics_t baseStatistics[4] = { 0 };
 
-	headNode = findKmer(headNode, &baseCounter, baseStatistics);
+	headNode = findKmer(headNode, &baseCounter, baseStatistics,
+			&TotalNumSequencesN);
 
 	statistics(&baseCounter, baseStatistics);
 
@@ -712,7 +897,7 @@ int main(int argc, char *argv[]) {
 
 	/* print out the occurrence of every sequence of length k */
 	histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
-			baseStatistics);
+			baseStatistics, &TotalNumSequencesN);
 
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 	DEBUG(fprintf(stdout, "\n"));
