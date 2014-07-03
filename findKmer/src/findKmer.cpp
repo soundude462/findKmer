@@ -513,7 +513,7 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 			for(int i = 0; i < 4; i++){
 				estimatedProportion *= pow((double)baseStatistics[i].Probability,(double)kmerBaseStatistics[i]);
 
-				cout << "baseStatistics[array[i]].Probability == "<<baseStatistics[i].Probability << " raised to the " << kmerBaseStatistics[i] << "  == kmerBaseStatistics[i]"<< endl;
+				cout << "baseStatistics[i].Probability == "<<baseStatistics[i].Probability << " raised to the " << kmerBaseStatistics[i] << "  == kmerBaseStatistics[i]"<< endl;
 
 				cout << "estimatedProportion so far == " << estimatedProportion<<endl;
 			}
