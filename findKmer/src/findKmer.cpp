@@ -949,7 +949,7 @@ int main(int argc, char *argv[]) {
 	fprintf(stdout,
 			"Your file can be found in the current directory as: \n    %s\n",
 			config.out_file);
-	fprintf(stdout, "End of program was reached properly.\n\n%c", 7);
+	fprintf(stdout, "End of program was reached properly.\n\n");
 	fprintf(stderr, " "); //simply to trigger error to notify the user that we are done.
 	return 0;
 }
