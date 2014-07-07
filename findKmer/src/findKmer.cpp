@@ -60,7 +60,7 @@ using namespace std;
 //#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
 #define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
 //#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
-#define DEFAULT_K_VALUE 8
+#define DEFAULT_K_VALUE 20
 #define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Z score"
 
 //This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
