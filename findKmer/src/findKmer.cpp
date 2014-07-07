@@ -161,7 +161,7 @@ long double float_n_choose_k(int n, unsigned int k) {
 
 }
 
-bool normal_approx_check(int n, double p, double q) {
+bool normal_approx_check(unsigned long long n, long double p, long double q) {
 	bool pass = true;
 
 	if (n * p >= 5) {
@@ -550,14 +550,25 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 
 			}
 
-			int n = *TotalNumSequencesN;
-			int x = head->frequency;
-			double p = estimatedProportion;
-			double q = 1 - p;
-			double standardDev = sqrt(n * p * q);	//standard deviation
-			double median = n * p;
-			double z = (x - median) / standardDev;
+			unsigned long long n = *TotalNumSequencesN;
+			unsigned long long x = head->frequency; // x = number of successes that I have had given number than trials (x <= N)
+			long double p = estimatedProportion; // probability of success based on occurances of letters in kmer vs letters in entire file
+			long double q = 1 - p; // probability of failure.
+			long double standardDev = sqrt(n * p * q);	//standard deviation
+			long double mean = n * p; //average (population mean)
+			long double z = (x - mean) / standardDev; //calculate the z score
 
+			DEBUG_STATISTICS(cout << n << " = n, "<< x <<" = x, " << p << " = p, " << q << " = q, "<< standardDev << " = standardDev, " << mean << " = mean, " << z << " = z" <<endl);
+
+			//There is a test to see if we can do the normal approximation test or not.
+			bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
+			if (canDoNormalApprox == true) {
+				fprintf(config.out_file_pointer, ", %Le", z);
+			} else {
+				fprintf(config.out_file_pointer, ",  Z score not allowed");
+			}
+
+			//			float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x) * pow((double) p, (double) x)
 			DEBUG_STATISTICS(
 					cout << float_n_choose_k(n, x) << "   "
 					<< pow((double) 1 - p, (double) n - x) << "   "
@@ -567,17 +578,6 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 					* pow((double) p, (double) x) << endl;
 			);
 
-			//There is a test to see if we can do the normal approximation test or not.
-			bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
-			if (canDoNormalApprox == false) {
-				//cout << z << " == the z score " << endl;
-				z = -1;
-			}
-
-			fprintf(config.out_file_pointer, ", %f", z);
-
-
-//			float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x) * pow((double) p, (double) x)
 			DEBUG_STATISTICS(
 					{	long double answer = float_n_choose_k(*TotalNumSequencesN,
 								head->frequency);
@@ -949,7 +949,7 @@ int main(int argc, char *argv[]) {
 	fprintf(stdout,
 			"Your file can be found in the current directory as: \n    %s\n",
 			config.out_file);
-	fprintf(stdout, "End of program was reached properly.\n\n");
+	fprintf(stdout, "End of program was reached properly.\n\n%c", 7);
 	fprintf(stderr, " "); //simply to trigger error to notify the user that we are done.
 	return 0;
 }
