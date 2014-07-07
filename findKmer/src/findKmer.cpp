@@ -57,10 +57,11 @@ using namespace std;
 #include <fstream> // basic file operations
 
 //must be a string literal with file extension included.
-#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
-//#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
+//#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
+#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
 //#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
 #define DEFAULT_K_VALUE 8
+#define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Z score"
 
 //This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
 #define COUNT_BASES_ONLY(x) x
@@ -160,18 +161,18 @@ long double float_n_choose_k(int n, unsigned int k) {
 
 }
 
-bool normal_approx_check(int n, double p, double q){
+bool normal_approx_check(int n, double p, double q) {
 	bool pass = true;
 
-	if(n*p >= 5){
+	if (n * p >= 5) {
 		pass = true;
-	}else{
+	} else {
 		pass = false;
 	}
 
-	if(n*q >= 5){
+	if (n * q >= 5) {
 		pass = true;
-	}else{
+	} else {
 		pass = false;
 	}
 	return pass;
@@ -280,7 +281,7 @@ void print_conf() {
 	}
 	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
 		fprintf(stdout, "Out file opened properly\n");
-		fprintf(config.out_file_pointer, "Sequence, Frequency");
+		fprintf(config.out_file_pointer, OUT_FILE_COLUMN_HEADERS);
 	} else {
 		fprintf(stderr, "Out file failed to open\n\n");
 		exit(EXIT_FAILURE);
@@ -514,12 +515,15 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 			unsigned int kmerBaseStatistics[4] = { 0 };
 			fputc('\n', config.out_file_pointer);
 
-			cout << "traversing kmer" << endl;
+			DEBUG_STATISTICS(cout << "traversing kmer" << endl);
 			for (int i = 0; i < k; i++) {
-				cout << "i == " << i << endl;
-				cout << "array[i] == " << array[i] << endl;
-				cout << "kmerBaseStatistics[array[i]] == "
+				DEBUG_STATISTICS(
+						cout << "i == " << i << endl;
+						cout << "array[i] == " << array[i] << endl;
+						cout << "kmerBaseStatistics[array[i]] == "
 						<< kmerBaseStatistics[array[i]] << endl;
+				);
+
 				kmerBaseStatistics[array[i]]++;
 
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
@@ -534,46 +538,77 @@ void histo_recursive(node_t* head, int* array, int depth, int k,
 						(double) baseStatistics[i].Probability,
 						(double) kmerBaseStatistics[i]);
 
-				cout << "baseStatistics[i].Probability == "
+				DEBUG_STATISTICS(
+						cout << "baseStatistics[i].Probability == "
 						<< baseStatistics[i].Probability << " raised to the "
 						<< kmerBaseStatistics[i] << "  == kmerBaseStatistics[i]"
 						<< endl;
 
-				cout << "estimatedProportion so far == " << estimatedProportion
+						cout << "estimatedProportion so far == " << estimatedProportion
 						<< endl;
+				);
+
 			}
 
-			long double answer = float_n_choose_k(*TotalNumSequencesN,
-					head->frequency);
-			long double binomialDistribution = answer
-					* pow((double) 1 - estimatedProportion,
-							(double) (*TotalNumSequencesN) - head->frequency)
-					* pow((double) estimatedProportion,
-							(double) head->frequency);
-			fprintf(config.out_file_pointer, ", %Le", binomialDistribution);
+			int n = *TotalNumSequencesN;
+			int x = head->frequency;
+			double p = estimatedProportion;
+			double q = 1 - p;
+			double standardDev = sqrt(n * p * q);	//standard deviation
+			double median = n * p;
+			double z = (x - median) / standardDev;
 
-			cout
-					<< "float_n_choose_k(TotalNumSequencesN, head->frequency) == float_n_choose_k( "
-					<< (*TotalNumSequencesN) << ", " << head->frequency << endl;
+			DEBUG_STATISTICS(
+					cout << float_n_choose_k(n, x) << "   "
+					<< pow((double) 1 - p, (double) n - x) << "   "
+					<< pow((double) p, (double) x) << endl;
+					cout
+					<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
+					* pow((double) p, (double) x) << endl;
+			);
 
-			cout << float_n_choose_k((*TotalNumSequencesN), head->frequency)
-					<< "   "
-					<< pow((double) 1 - estimatedProportion,
-							(double) (*TotalNumSequencesN) - head->frequency)
-					<< "   "
-					<< pow((double) estimatedProportion,
-							(double) head->frequency) << endl;
+			//There is a test to see if we can do the normal approximation test or not.
+			bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
+			if (canDoNormalApprox == false) {
+				//cout << z << " == the z score " << endl;
+				z = -1;
+			}
 
-			cout
-					<< float_n_choose_k((*TotalNumSequencesN), head->frequency)
-							* pow((double) 1 - estimatedProportion,
-									(double) (*TotalNumSequencesN)
-											- head->frequency)
-							* pow((double) estimatedProportion,
-									(double) head->frequency) << endl;
+			fprintf(config.out_file_pointer, ", %f", z);
 
-			fprintf(stderr, " ");
-			exit(1);
+
+//			float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x) * pow((double) p, (double) x)
+			DEBUG_STATISTICS(
+					{	long double answer = float_n_choose_k(*TotalNumSequencesN,
+								head->frequency);
+						long double binomialDistribution = answer
+						* pow((double) 1 - estimatedProportion,
+								(double) (*TotalNumSequencesN) - head->frequency)
+						* pow((double) estimatedProportion,
+								(double) head->frequency);
+						fprintf(config.out_file_pointer, ", %Le", binomialDistribution);
+
+						cout
+						<< "float_n_choose_k(TotalNumSequencesN, head->frequency) == float_n_choose_k( "
+						<< (*TotalNumSequencesN) << ", " << head->frequency << endl;
+
+						cout << float_n_choose_k((*TotalNumSequencesN), head->frequency)
+						<< "   "
+						<< pow((double) 1 - estimatedProportion,
+								(double) (*TotalNumSequencesN) - head->frequency)
+						<< "   "
+						<< pow((double) estimatedProportion,
+								(double) head->frequency) << endl;
+
+						cout
+						<< float_n_choose_k((*TotalNumSequencesN), head->frequency)
+						* pow((double) 1 - estimatedProportion,
+								(double) (*TotalNumSequencesN)
+								- head->frequency)
+						* pow((double) estimatedProportion,
+								(double) head->frequency) << endl;
+					}
+			);
 
 		}			//end if for reaching depth of k
 	}			//end else if for head == NULL
@@ -726,10 +761,10 @@ void scratch_function() {
 		int n = 10;
 		int x = 4;
 		double p = 1.0 / 5.0;
-		double q = 1-p;
-		double standardDev = sqrt(n*p*q);	//standard deviation
-		double median = n*p;
-		double z = (x-median) / standardDev;
+		double q = 1 - p;
+		double standardDev = sqrt(n * p * q);	//standard deviation
+		double median = n * p;
+		double z = (x - median) / standardDev;
 
 		cout << float_n_choose_k(n, x) << "   "
 				<< pow((double) 1 - p, (double) n - x) << "   "
@@ -737,9 +772,9 @@ void scratch_function() {
 		cout
 				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
 						* pow((double) p, (double) x) << endl;
-		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
 		cout << " normal distribution possible? " << canDoNormalApprox << endl;
-		if(canDoNormalApprox == true){
+		if (canDoNormalApprox == true) {
 			cout << z << " == the z score " << endl;
 		}
 	}
@@ -749,10 +784,10 @@ void scratch_function() {
 		int x = 4;
 		double p = 0.9;
 
-		double q = 1-p;
-		double standardDev = sqrt(n*p*q);	//standard deviation
-		double median = n*p;
-		double z = (x-median) / standardDev;
+		double q = 1 - p;
+		double standardDev = sqrt(n * p * q);	//standard deviation
+		double median = n * p;
+		double z = (x - median) / standardDev;
 
 		cout << float_n_choose_k(n, x) << "   "
 				<< pow((double) 1 - p, (double) n - x) << "   "
@@ -760,9 +795,9 @@ void scratch_function() {
 		cout
 				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
 						* pow((double) p, (double) x) << endl;
-		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
 		cout << " normal distribution possible? " << canDoNormalApprox << endl;
-		if(canDoNormalApprox == true){
+		if (canDoNormalApprox == true) {
 			cout << z << " == the z score " << endl;
 		}
 
@@ -774,10 +809,10 @@ void scratch_function() {
 		int n = 90148375;
 		int x = 2645164;
 		double p = 0.0166418;
-		double q = 1-p;
-		double standardDev = sqrt(n*p*q);	//standard deviation
-		double median = n*p;
-		double z = (x-median) / standardDev;
+		double q = 1 - p;
+		double standardDev = sqrt(n * p * q);	//standard deviation
+		double median = n * p;
+		double z = (x - median) / standardDev;
 
 		cout << float_n_choose_k(n, x) << "   "
 				<< pow((double) 1 - p, (double) n - x) << "   "
@@ -785,24 +820,25 @@ void scratch_function() {
 		cout
 				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
 						* pow((double) p, (double) x) << endl;
-		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
 		cout << " normal distribution possible? " << canDoNormalApprox << endl;
-		if(canDoNormalApprox == true){
+		if (canDoNormalApprox == true) {
 			cout << z << " == the z score " << endl;
 		}
 	}
 
 	{
-		cout << "3mer normal distribution to approximate a binomial prob. distribution."
+		cout
+				<< "3mer normal distribution to approximate a binomial prob. distribution."
 				<< endl;
 		int n = 90148375;
 		int x = 2645164;
 		double p = 0.0166418;
 
-		double q = 1-p;
-		double standardDev = sqrt(n*p*q);	//standard deviation
-		double median = n*p;
-		double z = (x-median) / standardDev;
+		double q = 1 - p;
+		double standardDev = sqrt(n * p * q);	//standard deviation
+		double median = n * p;
+		double z = (x - median) / standardDev;
 
 		cout << float_n_choose_k(n, x) << "   "
 				<< pow((double) 1 - p, (double) n - x) << "   "
@@ -810,25 +846,25 @@ void scratch_function() {
 		cout
 				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
 						* pow((double) p, (double) x) << endl;
-		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
 		cout << " normal distribution possible? " << canDoNormalApprox << endl;
-		if(canDoNormalApprox == true){
+		if (canDoNormalApprox == true) {
 			cout << z << " == the z score " << endl;
 		}
 
-
 	}
 	{
-		cout << "8mer all A's normal distribution to approximate a binomial prob. distribution."
+		cout
+				<< "8mer all A's normal distribution to approximate a binomial prob. distribution."
 				<< endl;
 		int n = 89697072;
 		int x = 151071;
 		double p = 1.80524e-05;
 
-		double q = 1-p;
-		double standardDev = sqrt(n*p*q);	//standard deviation
-		double median = n*p;
-		double z = (x-median) / standardDev;
+		double q = 1 - p;
+		double standardDev = sqrt(n * p * q);	//standard deviation
+		double median = n * p;
+		double z = (x - median) / standardDev;
 
 		cout << float_n_choose_k(n, x) << "   "
 				<< pow((double) 1 - p, (double) n - x) << "   "
@@ -836,20 +872,17 @@ void scratch_function() {
 		cout
 				<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
 						* pow((double) p, (double) x) << endl;
-		bool canDoNormalApprox = normal_approx_check(n,p,1-p);
+		bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
 		cout << " normal distribution possible? " << canDoNormalApprox << endl;
-		if(canDoNormalApprox == true){
+		if (canDoNormalApprox == true) {
 			cout << z << " == the z score " << endl;
 		}
 
-
 	}
-
 
 	fprintf(stderr, " ");
 	exit(1);
 }
-
 
 int main(int argc, char *argv[]) {
 	//scratch_function();
