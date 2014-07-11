@@ -44,3 +44,6 @@ homo_sapiensupstream.fas
 /timing
 /timing.txt
 /dump.txt
+/k6thru11fullANDupstream.sh~
+/kill_backgrounded_findKmer.sh~
+/top.sh~
