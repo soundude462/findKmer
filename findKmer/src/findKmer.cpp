@@ -279,7 +279,7 @@ void print_conf(int argc) {
 			config.suppressOutput ?
 					"Suppressing file read output and breaks." :
 					"file read identifier output and allowing breaks.");
-	fprintf(stdout, "\n");
+
 
 	if (config.suppressOutput == false && argc < 2) {
 		fprintf(stdout, "Press any key to proceed with this configuration.");
@@ -296,19 +296,23 @@ void print_conf(int argc) {
 
 	if ((config.sequence_file_pointer = fopen(config.sequence_file, "r"))
 			!= NULL) {
-		fprintf(stdout, "Sequence file opened properly\n");
+		//fprintf(stdout, "Sequence file opened properly\n");
 	} else {
 		fprintf(stderr, "Sequence file failed to open\n\n");
 		exit(EXIT_FAILURE);
 	}
+
 	if ((config.out_file_pointer = fopen(config.out_file, "w")) != NULL) {
-		fprintf(stdout, "Out file opened properly\n");
+		//fprintf(stdout, "Out file opened properly\n");
 		fprintf(config.out_file_pointer, OUT_FILE_COLUMN_HEADERS);
 	} else {
 		fprintf(stderr, "Out file failed to open\n\n");
 		exit(EXIT_FAILURE);
 	}
 
+	fprintf(stdout, "Sequence file and out file opened properly\n");
+
+	fprintf(stdout, "\n");
 }
 
 /* usage */
@@ -1020,18 +1024,31 @@ unsigned long int estimate_RAM_usage() {
 		}
 	}
 
-	//add one for the head node.
+	//add one for the head node. Calculate RAM usage and Harddrive usage.
 	unsigned long int maxNumberOfNodes = 1;
 	double n = 1;
 	while (n <= config.k) {
 		maxNumberOfNodes += pow(4.0, n++);
 	}
+	if (((sizeof(char) * (config.k + 10)) * maxNumberOfNodes)
+			>= (1024 * 1024 * 1024)) {
+		cout
+				<< ((sizeof(char) * (config.k + 10)) * maxNumberOfNodes)
+						/ (double) (1024 * 1024 * 1024)
+				<< " gibibytes";
+	} else {
+		cout
+				<< ((sizeof(char) * (config.k + 10)) * maxNumberOfNodes)
+						/ (double) (1024 * 1024)
+				<< " mibibytes";
+	}
+
+	cout << " of disk usage and ";
 
 	if (maxNumberOfNodes * sizeof(node_t) >= (1024 * 1024 * 1024)) {
-		cout << "This will use "
-				<< (maxNumberOfNodes * sizeof(node_t)
+		cout << (maxNumberOfNodes * sizeof(node_t)
 						/ (double) (1024 * 1024 * 1024))
-				<< " gibibytes of memory." << endl;
+				<< " gibibytes of RAM usage likely"<<endl;;
 		cout << "We are stopping here to make sure that is ok with you!"
 				<< endl;
 		cout << "Hit any key to proceed or else abort the program." << endl;
@@ -1039,9 +1056,8 @@ unsigned long int estimate_RAM_usage() {
 			getchar();
 		}
 	} else {
-		cout << "This will use "
-				<< (maxNumberOfNodes * sizeof(node_t) / (double) (1024 * 1024))
-				<< " mibibytes of memory." << endl;
+		cout << (maxNumberOfNodes * sizeof(node_t) / (double) (1024 * 1024))
+				<< " mibibytes of RAM usage likely"<<endl;
 	}
 	return maxNumberOfNodes;
 }
