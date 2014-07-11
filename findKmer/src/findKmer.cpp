@@ -276,7 +276,7 @@ void print_conf(int argc) {
 	if (config.k)
 		fprintf(stdout, "- k size: %d\n", config.k);
 	fprintf(stdout, "- %s\n",
-			DEFAULT_SUPPRESS_OUTPUT_VALUE ?
+			config.suppressOutput ?
 					"Suppressing file read output and breaks." :
 					"file read identifier output and allowing breaks.");
 	fprintf(stdout, "\n");
