@@ -46,7 +46,7 @@
 //                 No kmer sequence will contain the letter N at any position, thus it breaks a sequence
 // Bugs        : Known bugs include memory leaks
 // Fixed bugs  : Verified that the tree is actually creating the correct number of nodes. # of nodes != 4^k; see estimate ram usage.
-// Compile     : To compile perform make while in the Release folder.
+// Compile     : g++  -o "findKmer" [-O3 seems to work ok but unknown benefit]
 //============================================================================
 using namespace std;
 #include <iostream>
@@ -62,16 +62,19 @@ using namespace std;
  * Any combination of command line arguments can override these.
  * Default sequence file names must be a string literal with file extension.
  * These macros may bypass the error checking scheme!
- * The default suppress output value set to true will bypass missing -q --quiet in args
+ * The default suppress output value set to 1 OR GREATER will bypass DNA ID printing and getchar() breaks
+ * The default z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
  */
 #define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
 //#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
 //#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
 //#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
 
-#define DEFAULT_K_VALUE 7
+#define DEFAULT_K_VALUE 3
 #define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Z score"
-#define DEFAULT_SUPPRESS_OUTPUT_VALUE false
+#define DEFAULT_SUPPRESS_OUTPUT_VALUE 1
+#define DEFAULT_Z_THRESHOLD_ENABLE 1
+#define DEFAULT_Z_THRESHOLD 1000
 
 //This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
 #define COUNT_BASES_ONLY(x) x
@@ -105,16 +108,21 @@ struct node_t {
 	unsigned int frequency;
 };
 
-/* structure definition for configuration of file names, pointers, and length of k.*/
+/* structure definition for configuration of file names, pointers, and length of k.
+ * For enables: 0 == false, > 1 is true, < 1 means none supplied from user.
+ */
 static struct conf {
 	char *sequence_file; //holds the string representation of the file name.
 	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
 	char *out_file;		//holds the string representation of the file name.
 	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
 	int k; //holds the length of k for the size of the sequence to be recorded.
-	bool suppressOutput;
+	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
+	long int zThreshold; //holds the minimum Z score value to print to outfile
+	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
 } config; /* Config is a GLOBAL VARIABLE for configuration of file names, pointers, and length of k.*/
 
+//Global variable that needs to be localized.
 unsigned long long int nodeCounter = 0;
 
 extern int recurse_factorial(int i) {
@@ -226,15 +234,18 @@ void check_file(char *filename, char *mode) {
 		fclose(file);
 }
 
-/* initialize the configuration */
+/* initialize the configuration
+ * Set to null or an invalid value to determine default or user defined.
+ */
 void init_conf() {
 	config.sequence_file = NULL;
 	config.sequence_file_pointer = NULL;
 	config.out_file = NULL;
 	config.out_file_pointer = NULL;
 	config.k = 0;
-	config.suppressOutput = DEFAULT_SUPPRESS_OUTPUT_VALUE;
-
+	config.suppressOutputEnable = -1;
+	config.zThresholdEnable = -1;
+	config.zThreshold = -1;
 }
 
 /* This function fills in any gaps in the configuration file.*/
@@ -248,6 +259,7 @@ void set_default_conf() {
 		config.k = DEFAULT_K_VALUE;
 	}
 
+	//double check default and user defined K value.
 	if (!config.k) {
 		fprintf(stdout, "k must be greater than zero. Ending program.\n\n");
 		exit(EXIT_FAILURE);
@@ -264,6 +276,15 @@ void set_default_conf() {
 				config.sequence_file, outFileExension);
 	}
 
+	//if lessthan zero, then the user did not specify.
+	if (config.suppressOutputEnable < 0) {
+		config.suppressOutputEnable = DEFAULT_SUPPRESS_OUTPUT_VALUE;
+	}
+
+	if (config.zThresholdEnable < 0) {
+		config.zThresholdEnable = DEFAULT_Z_THRESHOLD_ENABLE;
+		config.zThreshold = DEFAULT_Z_THRESHOLD;
+	}
 }
 
 /* print the configuration */
@@ -276,13 +297,14 @@ void print_conf(int argc) {
 		fprintf(stdout, "- export file: %s\n", config.out_file);
 	if (config.k)
 		fprintf(stdout, "- k size: %d\n", config.k);
+
 	fprintf(stdout, "- %s\n",
-			config.suppressOutput ?
+			config.suppressOutputEnable > 0 ?
 					"Suppressing file read output and breaks." :
-					"file read identifier output and allowing breaks.");
+					"Showing DNA Sequence identifier and allowing breaks.");
 
-
-	if (config.suppressOutput == false && argc < 2) {
+	//if suppressOutputEnable is false and no command line arguments have been given:
+	if (config.suppressOutputEnable == 0 && argc < 2) {
 		fprintf(stdout, "Press any key to proceed with this configuration.");
 		getchar();
 	}
@@ -329,7 +351,7 @@ static void usage() {
 			"             [--ksize|-k  <k>] \n               Size of sequence for histogram.\n                Default is %d.\n\n",
 			DEFAULT_K_VALUE);
 	fprintf(stdout,
-			"             [--quiet|-q  ] \n               Suppress file read output and breaks.\n                Default is %s.\n\n",
+			"             [--quiet|-q  < 0 for FALSE | 1 for TRUE >] \n               Suppress file read output and breaks.\n                Default is %s.\n\n",
 			DEFAULT_SUPPRESS_OUTPUT_VALUE ? "true" : "false");
 
 	fprintf(stdout, "\n");
@@ -374,19 +396,43 @@ int parse_arguments(int argc, char **argv) {
 			} else if (strcmp(argv[i], "-k") == 0
 					|| strcmp(argv[i], "--ksize") == 0) {
 				i++;
-				int k = atoi(argv[i]);
-				if (k < 0 || k > 20) {
-					fprintf(stderr,
-							"%d is not a valid value for k.\nPlease select a number greater than zero and less than 21",
-							k);
+				if (i == argc) {
+					fprintf(stderr, "Number for size of k is missing.\n");
+					return 0;
+				} else {
+
+					int k = atoi(argv[i]);
+					if (k < 0 || k > 20) {
+						fprintf(stderr,
+								"%d is not a valid value for k.\nPlease select a number greater than zero and less than 21\n",
+								k);
+						exit(EXIT_FAILURE);
+					}
+					config.k = k;
 				}
-				config.k = k;
 			} else if (strcmp(argv[i], "-q") == 0
 					|| strcmp(argv[i], "--quiet") == 0) {
-				config.suppressOutput = true;
+				i++;
+				if (i == argc) {
+					fprintf(stderr, "True/false value for quiet option is missing.\nUsage is \"-q 1\" for suppression OR \"-q 0\" for expansion\n");
+					exit(EXIT_FAILURE);
+				} else {
+
+					int suppressOutputEnableOption = atoi(argv[i]);
+					if (suppressOutputEnableOption == 1
+							|| suppressOutputEnableOption == 0) {
+						config.suppressOutputEnable =
+								suppressOutputEnableOption;
+					} else {
+						fprintf(stderr,
+								"%d is not a valid value for suppress Output Enable Option.\nPlease select either 0 for FALSE or a 1 for TRUE",
+								suppressOutputEnableOption);
+						exit(EXIT_FAILURE);
+					}
+				}
 			} else {
 				fprintf(stderr, "Ignoring invalid option %s\n", argv[i]);
-				if (config.suppressOutput == false) {
+				if (config.suppressOutputEnable == 0) {
 					fprintf(stderr, "Press any key to continue.\n");
 					getchar();
 				}
@@ -627,7 +673,8 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
 				fputc(int2base(array[i]), config.out_file_pointer);
 
-			}DEBUG(fprintf(stdout, ", %d\n", head->frequency));
+			}
+			DEBUG(fprintf(stdout, ", %d\n", head->frequency));
 
 			fprintf(config.out_file_pointer, ", %d", head->frequency);
 			double estimatedProportion = 1;
@@ -773,7 +820,7 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 			//This line is very important! This means that a > in the file will break a sequence and it will treat the line as a comment.
 			seqSize = 0;
 
-			if (config.suppressOutput == false) {
+			if (config.suppressOutputEnable == 0) {
 				fprintf(stdout, "Read %llu bases\n%c", *baseCounter, c);
 
 				while ((c = fgetc(config.sequence_file_pointer)) != '\n') {
@@ -1020,7 +1067,7 @@ unsigned long int estimate_RAM_usage() {
 		printf("sizeof(node_t*) = %lu\n", sizeof(node_t*));
 		cout << "Press any key to continue or you can abort the program now."
 				<< endl;
-		if (config.suppressOutput == false) {
+		if (config.suppressOutputEnable == 0) {
 			getchar();
 		}
 	}
@@ -1035,30 +1082,30 @@ unsigned long int estimate_RAM_usage() {
 			>= (1024 * 1024 * 1024)) {
 		cout
 				<< ((sizeof(char) * (config.k + 10)) * maxNumberOfNodes)
-						/ (double) (1024 * 1024 * 1024)
-				<< " gibibytes";
+						/ (double) (1024 * 1024 * 1024) << " gibibytes";
 	} else {
 		cout
 				<< ((sizeof(char) * (config.k + 10)) * maxNumberOfNodes)
-						/ (double) (1024 * 1024)
-				<< " mibibytes";
+						/ (double) (1024 * 1024) << " mibibytes";
 	}
 
 	cout << " of disk usage and ";
 
 	if (maxNumberOfNodes * sizeof(node_t) >= (1024 * 1024 * 1024)) {
-		cout << (maxNumberOfNodes * sizeof(node_t)
+		cout
+				<< (maxNumberOfNodes * sizeof(node_t)
 						/ (double) (1024 * 1024 * 1024))
-				<< " gibibytes of RAM usage likely"<<endl;;
+				<< " gibibytes of RAM usage likely" << endl;
+		;
 		cout << "We are stopping here to make sure that is ok with you!"
 				<< endl;
 		cout << "Hit any key to proceed or else abort the program." << endl;
-		if (config.suppressOutput == false) {
+		if (config.suppressOutputEnable == 0) {
 			getchar();
 		}
 	} else {
 		cout << (maxNumberOfNodes * sizeof(node_t) / (double) (1024 * 1024))
-				<< " mibibytes of RAM usage likely"<<endl;
+				<< " mibibytes of RAM usage likely" << endl;
 	}
 	return maxNumberOfNodes;
 }
@@ -1068,8 +1115,8 @@ int main(int argc, char *argv[]) {
 	/* Deal with command line arguments */
 	DEBUG(
 			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
-				/* Next arg. */
-				currentArgument++;}fprintf(stdout, "\n");)
+			/* Next arg. */
+			currentArgument++;}fprintf(stdout, "\n");)
 
 	init_conf();
 	usage();
@@ -1133,7 +1180,7 @@ int main(int argc, char *argv[]) {
 	fprintf(stdout, "End of program was reached properly.\n\n");
 	fprintf(stderr, " "); //simply to trigger error to notify the user that we are done.
 //
-//	if (config.suppressOutput == false) {
+//	if (config.suppressOutputEnable == 0) {
 //		getchar();
 //	}
 	return 0;
