@@ -9,11 +9,11 @@
 # Performing this script uses less than a gig of ram. possibly half a gig. 
 # We use -q argument to suppress any user input requirements and minimize printing to the user. 
 for count in {6..11}; do echo "starting background run for k = $count for homo_sapiensupsream.fas"; 
-((nice ./Debug/findKmer -q -k $count -p homo_sapiensupstream.fas >& /dev/null)&);
+((nice ./Debug/findKmer -q 1 -k $count -p homo_sapiensupstream.fas >& /dev/null)&);
 done
 
 for count in {6..11}; do echo "starting background  run for k = $count for Full_homosapiens.fa"; 
-((nice ./Debug/findKmer -q -k $count -p Full_homo_sapiens.fa >& /dev/null)&); 
+((nice ./Debug/findKmer -q 1 -k $count -p Full_homo_sapiens.fa >& /dev/null)&); 
 done
 
 #pkill findKmer

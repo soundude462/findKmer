@@ -70,7 +70,7 @@ using namespace std;
 //#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
 //#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
 
-#define DEFAULT_K_VALUE 3
+#define DEFAULT_K_VALUE 6
 #define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Z score"
 #define DEFAULT_SUPPRESS_OUTPUT_VALUE 1
 #define DEFAULT_Z_THRESHOLD_ENABLE 1
@@ -118,7 +118,7 @@ static struct conf {
 	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
 	int k; //holds the length of k for the size of the sequence to be recorded.
 	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
-	long int zThreshold; //holds the minimum Z score value to print to outfile
+	long double zThreshold; //holds the minimum Z score value to print to outfile
 	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
 } config; /* Config is a GLOBAL VARIABLE for configuration of file names, pointers, and length of k.*/
 
@@ -264,18 +264,6 @@ void set_default_conf() {
 		fprintf(stdout, "k must be greater than zero. Ending program.\n\n");
 		exit(EXIT_FAILURE);
 	}
-
-	if (!config.out_file) {
-		char* nameOfFile = "mer_Historam_Of_";
-		char* outFileExension = ".csv";
-		config.out_file = (char*) allocate_array(
-				strlen("999") + strlen(nameOfFile)
-						+ strlen(config.sequence_file)
-						+ strlen(outFileExension), sizeof(char));
-		sprintf(config.out_file, "%d%s%s%s", config.k, nameOfFile,
-				config.sequence_file, outFileExension);
-	}
-
 	//if lessthan zero, then the user did not specify.
 	if (config.suppressOutputEnable < 0) {
 		config.suppressOutputEnable = DEFAULT_SUPPRESS_OUTPUT_VALUE;
@@ -285,6 +273,29 @@ void set_default_conf() {
 		config.zThresholdEnable = DEFAULT_Z_THRESHOLD_ENABLE;
 		config.zThreshold = DEFAULT_Z_THRESHOLD;
 	}
+
+	if (!config.out_file) {
+		char* nameOfFile = "mer_Historam_Of_";
+		char* outFileExension = ".csv";
+		char* zScoreFiltered = "zScoreFiltered";
+
+		if (config.zThresholdEnable == 0){
+			config.out_file = (char*) allocate_array(
+					strlen("999") + strlen(nameOfFile)
+							+ strlen(config.sequence_file)
+							+ strlen(outFileExension), sizeof(char));
+		sprintf(config.out_file, "%d%s%s%s", config.k, nameOfFile,
+				config.sequence_file, outFileExension);
+		}else{
+			config.out_file = (char*) allocate_array(
+					strlen("999") + strlen(nameOfFile)
+							+ strlen(config.sequence_file)
+							+ strlen(outFileExension)+strlen(zScoreFiltered), sizeof(char));
+		sprintf(config.out_file, "%d%s%s%s%s", config.k, nameOfFile,
+				config.sequence_file,zScoreFiltered, outFileExension);
+		}
+	}
+
 }
 
 /* print the configuration */
@@ -302,6 +313,14 @@ void print_conf(int argc) {
 			config.suppressOutputEnable > 0 ?
 					"Suppressing file read output and breaks." :
 					"Showing DNA Sequence identifier and allowing breaks.");
+
+	fprintf(stdout, "- Z score filtering is %s",
+	DEFAULT_Z_THRESHOLD_ENABLE ? "enabled" : "disabled");
+
+	if (config.zThresholdEnable > 0) {
+		fprintf(stdout, "\n    with threshold of %LE", config.zThreshold);
+	}
+	fprintf(stdout, ".\n\n");
 
 	//if suppressOutputEnable is false and no command line arguments have been given:
 	if (config.suppressOutputEnable == 0 && argc < 2) {
@@ -329,7 +348,8 @@ void print_conf(int argc) {
 		//fprintf(stdout, "Out file opened properly\n");
 		fprintf(config.out_file_pointer, OUT_FILE_COLUMN_HEADERS);
 	} else {
-		fprintf(stderr, "Out file failed to open\n\n");
+		fprintf(stderr,
+				"Out file failed to open\nFile MUST be in current directory.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -354,8 +374,12 @@ static void usage() {
 			"             [--quiet|-q  < 0 for FALSE | 1 for TRUE >] \n               Suppress file read output and breaks.\n                Default is %s.\n\n",
 			DEFAULT_SUPPRESS_OUTPUT_VALUE ? "true" : "false");
 
+	long double tempzThreshold = DEFAULT_Z_THRESHOLD;
+	fprintf(stdout,
+			"             [--zthreshold|-z  < Threshold_for_Z >] \n               Suppress sequences with Z scores lower than threshold.\n                Default is %s with a value of %LG.\n\n",
+			DEFAULT_Z_THRESHOLD_ENABLE ? "enabled" : "disabled",
+			tempzThreshold);
 	fprintf(stdout, "\n");
-
 }
 
 int parse_arguments(int argc, char **argv) {
@@ -414,7 +438,8 @@ int parse_arguments(int argc, char **argv) {
 					|| strcmp(argv[i], "--quiet") == 0) {
 				i++;
 				if (i == argc) {
-					fprintf(stderr, "True/false value for quiet option is missing.\nUsage is \"-q 1\" for suppression OR \"-q 0\" for expansion\n");
+					fprintf(stderr,
+							"True/false value for quiet option is missing.\nUsage is \"-q 1\" for suppression OR \"-q 0\" for expansion\n");
 					exit(EXIT_FAILURE);
 				} else {
 
@@ -657,9 +682,8 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 		//once we have exhausted all branches and free'd them, we check for depth of k.
 		if (depth == (k)) {
 			unsigned int kmerBaseStatistics[4] = { 0 };
-			fputc('\n', config.out_file_pointer);
 
-			DEBUG_STATISTICS(cout << "traversing kmer" << endl);
+			DEBUG_STATISTICS(cout << "pre traversing kmer" << endl);
 			for (int i = 0; i < k; i++) {
 				DEBUG_STATISTICS(
 						cout << "i == " << i << endl;
@@ -671,12 +695,8 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 				kmerBaseStatistics[array[i]]++;
 
 				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
-				fputc(int2base(array[i]), config.out_file_pointer);
+			}DEBUG(fprintf(stdout, ", %d\n", head->frequency));
 
-			}
-			DEBUG(fprintf(stdout, ", %d\n", head->frequency));
-
-			fprintf(config.out_file_pointer, ", %d", head->frequency);
 			double estimatedProportion = 1;
 			for (int i = 0; i < 4; i++) {
 				estimatedProportion *= pow(
@@ -709,9 +729,29 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 			//There is a test to see if we can do the normal approximation test or not.
 			bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
 			if (canDoNormalApprox == true) {
-				fprintf(config.out_file_pointer, ", %Le", z);
+				//http://www.cplusplus.com/reference/cstdio/printf/ was using %Le
+				//if the threshold is not enabled OR (if the threshold is enabled and our z score is a minimum the Z threshold.)
+				DEBUG_STATISTICS(cout << config.zThresholdEnable << " config.zThresholdEnable, " << z << " = z, " << config.zThreshold<<" = config.zThreshold" <<endl);
+
+				if (config.zThresholdEnable == 0
+						|| ((config.zThresholdEnable > 0)
+								&& (z >= config.zThreshold))) {
+
+					//write the information to the file.
+					//start a new line.
+					fputc('\n', config.out_file_pointer);
+					//print out the sequence that we found.
+					for (int i = 0; i < k; i++) {
+						fputc(int2base(array[i]), config.out_file_pointer);
+					}
+					//print out the number of times that we saw the sequence.
+					fprintf(config.out_file_pointer, ", %d", head->frequency);
+					//print out the Z score value if it is greater than or equal to the threshold.
+					fprintf(config.out_file_pointer, ", %LE", z);
+				}
 			} else {
-				fprintf(config.out_file_pointer, ",  Z score not allowed");
+				DEBUG_STATISTICS(fprintf(stdout,
+								"Sequence was below Z threshold and was not printed.\n"));
 			}
 
 			//			float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x) * pow((double) p, (double) x)
@@ -1115,8 +1155,8 @@ int main(int argc, char *argv[]) {
 	/* Deal with command line arguments */
 	DEBUG(
 			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
-			/* Next arg. */
-			currentArgument++;}fprintf(stdout, "\n");)
+				/* Next arg. */
+				currentArgument++;}fprintf(stdout, "\n");)
 
 	init_conf();
 	usage();
