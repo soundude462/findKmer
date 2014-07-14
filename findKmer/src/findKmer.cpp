@@ -44,8 +44,9 @@
 //                 '>' designates the beginning of an ID and newlines ('\n') designates the end of an ID
 //                 Newlines ('\n') are otherwise ignored completely
 //                 No kmer sequence will contain the letter N at any position, thus it breaks a sequence
-// Bugs        : Known bugs include memory leaks and the tree is created with more depth than intended.
-// Compile     : To compile perform: g++ -O3 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/findKmer.d" -MT"src/findKmer.d" -o "src/findKmer.o" "../src/findKmer.cpp"
+// Bugs        : Known bugs include memory leaks
+// Fixed bugs  : Verified that the tree is actually creating the correct number of nodes. # of nodes != 4^k; see estimate ram usage.
+// Compile     : To compile perform make while in the Release folder.
 //============================================================================
 using namespace std;
 #include <iostream>
