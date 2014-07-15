@@ -20,6 +20,15 @@ for count in {6..11}; do echo "starting nice background  run for k = $count z fi
 ((nice ./Debug/findKmer -q 1 -k $count -z 1000 -p Full_homo_sapiens.fa >& /dev/null)&); 
 done
 
+for count in {6..11}; do echo "starting nice background run for k = $count z filtered at 100 for homo_sapiensupsream.fas"; 
+((nice ./findKmer -q 1 -k $count -z 100 -p homo_sapiensupstream.fas >& /dev/null)&);
+done
+
+for count in {6..11}; do echo "starting nice background  run for k = $count z filtered at 1000 for Full_homosapiens.fa"; 
+((nice ./findKmer -q 1 -k $count -z 1000 -p Full_homo_sapiens.fa >& /dev/null)&); 
+done
+
+
 #pkill findKmer
 echo "type \"pkill -f findKmer\" to end running processes";
 echo "Hit a key to monitor the processes, then ctrl+c to end monitoring. ";
