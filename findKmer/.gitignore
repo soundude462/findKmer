@@ -47,3 +47,5 @@ homo_sapiensupstream.fas
 /k6thru11fullANDupstream.sh~
 /kill_backgrounded_findKmer.sh~
 /top.sh~
+/5mer_Base_Stats_Of_homo_sapiensupstream.fas_.txt
+/kmerMonitor.sh~

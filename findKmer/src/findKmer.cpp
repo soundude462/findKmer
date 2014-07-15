@@ -77,7 +77,7 @@ using namespace std;
 #define DEFAULT_K_VALUE 5
 #define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Z score"
 #define DEFAULT_SUPPRESS_OUTPUT_VALUE 1
-#define DEFAULT_Z_THRESHOLD_ENABLE 1
+#define DEFAULT_Z_THRESHOLD_ENABLE 0
 #define DEFAULT_Z_THRESHOLD 1000
 
 //This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
@@ -472,7 +472,24 @@ void statistics(unsigned long long * const baseCounter,
 		statistics_t * const baseStatistics,
 		unsigned long long * const TotalNumSequencesN,
 		unsigned long int * const maxNumberOfNodes) {
-	//Statistics section Still needs to be verified and expanded.
+	char* nameOfFile = "mer_Base_Stats_Of_";
+	char* outFileExension = "_.txt";
+
+	char* stats_out_file_name = (char*) allocate_array(
+			strlen("999") + strlen(nameOfFile) + strlen(config.sequence_file) + strlen(outFileExension),
+			sizeof(char));
+
+	sprintf(stats_out_file_name, "%d%s%s%s", config.k, nameOfFile,
+			config.sequence_file, outFileExension);
+	cout << stats_out_file_name << " = stats file name " << endl;
+
+	FILE * stats_out_file_pointer = NULL;
+	if ((stats_out_file_pointer = fopen(stats_out_file_name, "w")) == NULL) {
+		fprintf(stderr,
+				"Out file failed to open\nFile MUST be in current directory.\n");
+		exit(EXIT_FAILURE);
+	}
+
 	fprintf(stdout,
 			"Statistics of occurrences and probability of A, C, G and T respectively: \n");
 	for (int i = 0; i < 4; i++) {
@@ -488,6 +505,7 @@ void statistics(unsigned long long * const baseCounter,
 		}
 
 		fprintf(stdout, ", %Lf\n", baseStatistics[i].Probability);
+		fprintf(stats_out_file_pointer, "%Lf\n", baseStatistics[i].Probability);
 	}
 
 	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
@@ -496,8 +514,7 @@ void statistics(unsigned long long * const baseCounter,
 	cout << (*TotalNumSequencesN) << " sequences of length k were found "
 			<< endl;
 
-	cout << nodeCounter << " Nodes created " << endl;
-	cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl;
+	DEBUG(cout << nodeCounter << " Nodes created " << endl);DEBUG(cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl);
 
 	if (nodeCounter == (*maxNumberOfNodes)) {
 		fprintf(stdout, "All possible kmers combinations were found.\n");
@@ -507,6 +524,10 @@ void statistics(unsigned long long * const baseCounter,
 	} else {
 		fprintf(stdout, "FYI we did not find all possible combinations.\n");
 	}
+
+	free(stats_out_file_name);
+	fclose(stats_out_file_pointer);
+
 	return;
 
 }
