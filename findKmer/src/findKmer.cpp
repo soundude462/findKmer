@@ -221,7 +221,9 @@ void deallocate_array(void** array) {
 void check_file(char *filename, char *mode) {
 	FILE *file = fopen(filename, mode);
 	if (file == NULL) {
-		fprintf(stderr, "Unable to open file %s in %s mode\n", filename, mode);
+		fprintf(stderr,
+				"Unable to open file %s in %s mode\nFile MUST be in current directory.\n",
+				filename, mode);
 		exit(EXIT_FAILURE);
 	} else
 		fclose(file);
@@ -306,12 +308,12 @@ void print_conf(int argc) {
 					"Showing DNA Sequence identifier and allowing breaks.");
 
 	fprintf(stdout, "- Z score filtering is %s",
-	DEFAULT_Z_THRESHOLD_ENABLE ? "enabled" : "disabled");
+	config.zThresholdEnable ? "enabled" : "disabled");
 
 	if (config.zThresholdEnable > 0) {
-		fprintf(stdout, "\n    with threshold of %LE", config.zThreshold);
+		fprintf(stdout, "\n    with threshold of %LG", config.zThreshold);
 	}
-	fprintf(stdout, ".\n\n");
+	fprintf(stdout, ".\n");
 
 	//if suppressOutputEnable is false and no command line arguments have been given:
 	if (config.suppressOutputEnable == 0 && argc < 2) {
@@ -476,8 +478,8 @@ void statistics(unsigned long long * const baseCounter,
 	char* outFileExension = "_.txt";
 
 	char* stats_out_file_name = (char*) allocate_array(
-			strlen("999") + strlen(nameOfFile) + strlen(config.sequence_file) + strlen(outFileExension),
-			sizeof(char));
+			strlen("999") + strlen(nameOfFile) + strlen(config.sequence_file)
+					+ strlen(outFileExension), sizeof(char));
 
 	sprintf(stats_out_file_name, "%d%s%s%s", config.k, nameOfFile,
 			config.sequence_file, outFileExension);
