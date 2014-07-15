@@ -8,30 +8,31 @@
 # Nice is required to launch all 14 "tasks" or it would shutdown the system.
 # Performing this script uses less than a gig of ram. possibly half a gig. 
 # We use -q argument to suppress any user input requirements and minimize printing to the user. 
+# 
 
 #kill any previously running kmer scripts. 
 pkill findKmer
 
 for count in {6..11}; do echo "starting nice background run for k = $count z filtered at 100 for homo_sapiensupsream.fas"; 
 ((nice ./Debug/findKmer -q 1 -k $count -z 100 -p homo_sapiensupstream.fas >& /dev/null)&);
-done
-
-for count in {6..11}; do echo "starting nice background  run for k = $count z filtered at 1000 for Full_homosapiens.fa"; 
-((nice ./Debug/findKmer -q 1 -k $count -z 1000 -p Full_homo_sapiens.fa >& /dev/null)&); 
-done
-
-for count in {6..11}; do echo "starting nice background run for k = $count z filtered at 100 for homo_sapiensupsream.fas"; 
 ((nice ./findKmer -q 1 -k $count -z 100 -p homo_sapiensupstream.fas >& /dev/null)&);
 done
 
 for count in {6..11}; do echo "starting nice background  run for k = $count z filtered at 1000 for Full_homosapiens.fa"; 
+((nice ./Debug/findKmer -q 1 -k $count -z 1000 -p Full_homo_sapiens.fa >& /dev/null)&); 
 ((nice ./findKmer -q 1 -k $count -z 1000 -p Full_homo_sapiens.fa >& /dev/null)&); 
 done
 
 
+
 #pkill findKmer
-echo "type \"pkill -f findKmer\" to end running processes";
 echo "Hit a key to monitor the processes, then ctrl+c to end monitoring. ";
 read -n1 kbd
 
 command watch -n 5 -t top -b -n 1 -p$(pgrep findKmer | head -20 | tr "\\n" "," | sed 's/,$//')
+
+echo "If you are seeing this after hitting any key, but you didn't see any running processes\n
+Or you saw \"-p no option detected \" \n
+Then the launch failed, be sure you performed MAKE and that the source files are in the current directory!\n";
+echo "Otherwise, type \"pkill -f findKmer\" to end running processes";
+echo "Also, rerunning this script will kill any findKmer processes that have started.";
