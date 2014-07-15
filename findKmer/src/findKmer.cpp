@@ -44,9 +44,13 @@
 //                 '>' designates the beginning of an ID and newlines ('\n') designates the end of an ID
 //                 Newlines ('\n') are otherwise ignored completely
 //                 No kmer sequence will contain the letter N at any position, thus it breaks a sequence
-// Bugs        : Known bugs include memory leaks
+// Bugs        : Known bugs include memory leaks.
+// TODO        : Passing by value actually is worse than pass by reference for single elements of some types, weed out that case (esp 64 bit sys = 64 bit pointer)
+// TODO        : A choice could be made in development to either minimize storage of tree in memory by having different nodes for branch and leaf,
+// TODO        : Changing the findKmer function to take in a single letter and a size k and have it only increment the counter when it reaches depth == its k.
+// TODO        : This would be easily done if findKmer was a class that we could instantiate n classes and they would retain their values.
 // Fixed bugs  : Verified that the tree is actually creating the correct number of nodes. # of nodes != 4^k; see estimate ram usage.
-// Compile     : g++  -o "findKmer" [-O3 seems to work ok but unknown benefit]
+// Compile     : g++  -o "findKmer" [-O3 seems to work OK but unknown benefit]
 //============================================================================
 using namespace std;
 #include <iostream>
@@ -70,7 +74,7 @@ using namespace std;
 //#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
 //#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
 
-#define DEFAULT_K_VALUE 6
+#define DEFAULT_K_VALUE 5
 #define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Z score"
 #define DEFAULT_SUPPRESS_OUTPUT_VALUE 1
 #define DEFAULT_Z_THRESHOLD_ENABLE 1
@@ -92,7 +96,6 @@ struct statistics_t {
 	unsigned int Count; //number of said base encountered.
 	long double Probability; //probability that this base will be encountered out of all bases.
 };
-
 /* Data structure for a tree.
  * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
  * holds the ranges of each data type.
@@ -107,7 +110,6 @@ struct node_t {
 	struct node_t *nextNodePtr[4];
 	unsigned int frequency;
 };
-
 /* structure definition for configuration of file names, pointers, and length of k.
  * For enables: 0 == false, > 1 is true, < 1 means none supplied from user.
  */
@@ -121,7 +123,6 @@ static struct conf {
 	long double zThreshold; //holds the minimum Z score value to print to outfile
 	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
 } config; /* Config is a GLOBAL VARIABLE for configuration of file names, pointers, and length of k.*/
-
 //Global variable that needs to be localized.
 unsigned long long int nodeCounter = 0;
 
@@ -131,7 +132,6 @@ extern int recurse_factorial(int i) {
 	else
 		return (1);
 }
-
 extern long double float_factorial(int i) {
 	int j;
 	long double val = 1.0;
@@ -143,7 +143,6 @@ extern long double float_factorial(int i) {
 	} else
 		return (1.0);
 }
-
 int n_choose_k(int n, int k)
 //Note that this function assumes that n choose k can be represented as the 32-bit int
 		{
@@ -162,7 +161,6 @@ int n_choose_k(int n, int k)
 	retval = retval / recurse_factorial(small_denom);
 	return (retval);
 }
-
 long double float_n_choose_k(int n, unsigned int k) {
 	int i;
 	long double fretval = 1.0, large_denom, small_denom;
@@ -182,7 +180,6 @@ long double float_n_choose_k(int n, unsigned int k) {
 	return (fretval);
 
 }
-
 bool normal_approx_check(unsigned long long n, long double p, long double q) {
 	bool pass = true;
 
@@ -199,7 +196,6 @@ bool normal_approx_check(unsigned long long n, long double p, long double q) {
 	}
 	return pass;
 }
-
 void *allocate_array(int size, size_t element_size) {
 	void *mem = malloc(size * element_size);
 	if (!mem) {
@@ -208,7 +204,6 @@ void *allocate_array(int size, size_t element_size) {
 	}
 	return mem;
 }
-
 void *reallocate_array(void *array, int size, size_t element_size) {
 	void *new_array = realloc(array, element_size * size);
 	if (!new_array) {
@@ -218,12 +213,10 @@ void *reallocate_array(void *array, int size, size_t element_size) {
 
 	return new_array;
 }
-
 void deallocate_array(void** array) {
 	free(*array);
 	*array = NULL;
 }
-
 /* check that the given file can be read/written */
 void check_file(char *filename, char *mode) {
 	FILE *file = fopen(filename, mode);
@@ -233,7 +226,6 @@ void check_file(char *filename, char *mode) {
 	} else
 		fclose(file);
 }
-
 /* initialize the configuration
  * Set to null or an invalid value to determine default or user defined.
  */
@@ -247,7 +239,6 @@ void init_conf() {
 	config.zThresholdEnable = -1;
 	config.zThreshold = -1;
 }
-
 /* This function fills in any gaps in the configuration file.*/
 void set_default_conf() {
 
@@ -279,25 +270,25 @@ void set_default_conf() {
 		char* outFileExension = ".csv";
 		char* zScoreFiltered = "zScoreFiltered";
 
-		if (config.zThresholdEnable == 0){
+		if (config.zThresholdEnable == 0) {
 			config.out_file = (char*) allocate_array(
 					strlen("999") + strlen(nameOfFile)
 							+ strlen(config.sequence_file)
 							+ strlen(outFileExension), sizeof(char));
-		sprintf(config.out_file, "%d%s%s%s", config.k, nameOfFile,
-				config.sequence_file, outFileExension);
-		}else{
+			sprintf(config.out_file, "%d%s%s%s", config.k, nameOfFile,
+					config.sequence_file, outFileExension);
+		} else {
 			config.out_file = (char*) allocate_array(
 					strlen("999") + strlen(nameOfFile)
 							+ strlen(config.sequence_file)
-							+ strlen(outFileExension)+strlen(zScoreFiltered), sizeof(char));
-		sprintf(config.out_file, "%d%s%s%s%s", config.k, nameOfFile,
-				config.sequence_file,zScoreFiltered, outFileExension);
+							+ strlen(outFileExension) + strlen(zScoreFiltered),
+					sizeof(char));
+			sprintf(config.out_file, "%d%s%s%s%s", config.k, nameOfFile,
+					config.sequence_file, zScoreFiltered, outFileExension);
 		}
 	}
 
 }
-
 /* print the configuration */
 void print_conf(int argc) {
 	fprintf(stdout, "\nATTEMPTING CONFIGURATION: \n");
@@ -357,7 +348,6 @@ void print_conf(int argc) {
 
 	fprintf(stdout, "\n");
 }
-
 /* usage */
 static void usage() {
 	fprintf(stdout, "\n");
@@ -376,12 +366,11 @@ static void usage() {
 
 	long double tempzThreshold = DEFAULT_Z_THRESHOLD;
 	fprintf(stdout,
-			"             [--zthreshold|-z  < Threshold_for_Z >] \n               Suppress sequences with Z scores lower than threshold.\n                Default is %s with a value of %LG.\n\n",
+			"             [--zthreshold|-z  < Threshold_for_Z >] \n               Suppress sequences with Z scores < threshold.\n                Default is %s with a value of %LG.\n\n",
 			DEFAULT_Z_THRESHOLD_ENABLE ? "enabled" : "disabled",
 			tempzThreshold);
 	fprintf(stdout, "\n");
 }
-
 int parse_arguments(int argc, char **argv) {
 	int i = 1;
 	if (argc < 2) {
@@ -455,6 +444,17 @@ int parse_arguments(int argc, char **argv) {
 						exit(EXIT_FAILURE);
 					}
 				}
+			} else if (strcmp(argv[i], "-z") == 0
+					|| strcmp(argv[i], "--zthreshold") == 0) {
+				i++;
+				if (i == argc) {
+					fprintf(stderr,
+							"Z threshold number is missing\nUsage is \"-z 1000\".\n");
+					exit(EXIT_FAILURE);
+				} else {
+					config.zThresholdEnable = 1;
+					config.zThreshold = atoi(argv[i]);
+				}
 			} else {
 				fprintf(stderr, "Ignoring invalid option %s\n", argv[i]);
 				if (config.suppressOutputEnable == 0) {
@@ -468,7 +468,6 @@ int parse_arguments(int argc, char **argv) {
 
 	return 1;
 }
-
 void statistics(unsigned long long * const baseCounter,
 		statistics_t * const baseStatistics,
 		unsigned long long * const TotalNumSequencesN,
@@ -511,7 +510,6 @@ void statistics(unsigned long long * const baseCounter,
 	return;
 
 }
-
 // Gus' Functions
 int base2int(char base) {
 	int integer = -1;
@@ -553,7 +551,6 @@ char int2base(int integer) {
 	//close the function
 	return base;
 }
-
 /*
  * Creates a tree node.
  * Brings in the base of the node to create
@@ -570,7 +567,6 @@ node_t* node_create(int base) {
 	nodeCounter++;
 	return node;
 }
-
 /*
  * Adds a branch if one doesn't already exist.
  * Increments the counter for the node we are going to step into.
@@ -605,7 +601,6 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 	}DEBUG_TREE_CREATE(fprintf(stdout, "..returning next base pointer.\n"));
 	return node->nextNodePtr[base];
 }
-
 /*
  * Brings in a pointer to head of the tree, an integer array and the size k of the array
  * Checks to see if the array exists, and if the tree already exists.
@@ -643,7 +638,6 @@ node_t* tree_create(node_t* head, int* const array, int k,
 	}
 	return head;
 }
-
 /*
  * Histogram can be recursive for low numbers of K.
  * If K becomes too high then we may run out of stack/heap memory.
@@ -799,7 +793,6 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 		}			//end if for reaching depth of k
 	}			//end else if for head == NULL
 }			//end histogram function.
-
 //for testing purposes.
 void random_array(int sizeOfArray) {
 	//Initializing array to test code. this will come from the pre processed line
