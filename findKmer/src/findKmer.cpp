@@ -519,12 +519,15 @@ void statistics(unsigned long long * const baseCounter,
 	DEBUG(cout << nodeCounter << " Nodes created " << endl);DEBUG(cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl);
 
 	if (nodeCounter == (*maxNumberOfNodes)) {
+		fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k);
 		fprintf(stdout, "All possible kmers combinations were found.\n");
 	} else if (nodeCounter > (*maxNumberOfNodes)) {
 		fprintf(stderr,
 				"Error! too many nodes were created!\nThere may be a corruption of data!\n");
+		fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k);
 	} else {
 		fprintf(stdout, "FYI we did not find all possible combinations.\n");
+		fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations were found.\n",config.k);
 	}
 
 	free(stats_out_file_name);
