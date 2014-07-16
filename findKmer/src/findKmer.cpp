@@ -308,7 +308,7 @@ void print_conf(int argc) {
 					"Showing DNA Sequence identifier and allowing breaks.");
 
 	fprintf(stdout, "- Z score filtering is %s",
-	config.zThresholdEnable ? "enabled" : "disabled");
+			config.zThresholdEnable ? "enabled" : "disabled");
 
 	if (config.zThresholdEnable > 0) {
 		fprintf(stdout, "\n    with threshold of %LG", config.zThreshold);
@@ -483,7 +483,6 @@ void statistics(unsigned long long * const baseCounter,
 
 	sprintf(stats_out_file_name, "%d%s%s%s", config.k, nameOfFile,
 			config.sequence_file, outFileExension);
-	cout << stats_out_file_name << " = stats file name " << endl;
 
 	FILE * stats_out_file_pointer = NULL;
 	if ((stats_out_file_pointer = fopen(stats_out_file_name, "w")) == NULL) {
@@ -516,19 +515,22 @@ void statistics(unsigned long long * const baseCounter,
 	cout << (*TotalNumSequencesN) << " sequences of length k were found "
 			<< endl;
 
-	DEBUG(cout << nodeCounter << " Nodes created " << endl);DEBUG(cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl);
+	DEBUG(cout << nodeCounter << " Nodes created " << endl);
 
-	if (nodeCounter == (*maxNumberOfNodes)) {
-		fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k);
-		fprintf(stdout, "All possible kmers combinations were found.\n");
-	} else if (nodeCounter > (*maxNumberOfNodes)) {
-		fprintf(stderr,
-				"Error! too many nodes were created!\nThere may be a corruption of data!\n");
-		fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k);
-	} else {
-		fprintf(stdout, "FYI we did not find all possible combinations.\n");
-		fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations were found.\n",config.k);
-	}
+	DEBUG(cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl);
+
+	COUNT_BASES_ONLY(
+			if (nodeCounter == (*maxNumberOfNodes)) {
+				fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k);
+				fprintf(stdout, "All possible kmers combinations were found.\n");
+			} else if (nodeCounter > (*maxNumberOfNodes)) {
+				fprintf(stderr,
+						"Error! too many nodes were created!\nThere may be a corruption of data!\n");
+				fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k);
+			} else {
+				fprintf(stdout, "FYI we did not find all possible combinations.\n");
+				fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations were found.\n",config.k);
+			});
 
 	free(stats_out_file_name);
 	fclose(stats_out_file_pointer);
@@ -652,9 +654,7 @@ node_t* tree_create(node_t* head, int* const array, int k,
 		for (int i = 0; i < k; i++) {
 			DEBUG_TREE_CREATE(fprintf(stdout, "-Moving into a branch on depth %d\n", i);
 			);
-			COUNT_BASES_ONLY(
-					currentNode = node_branch_enter_and_create(currentNode,
-							array[i]));
+			currentNode = node_branch_enter_and_create(currentNode, array[i]);
 
 		}
 	} else {
@@ -917,8 +917,8 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 				 */
 				if (seqSize > config.k) {
 
-					headNode = tree_create(headNode, kmer, config.k,
-							baseStatistics);
+					COUNT_BASES_ONLY(headNode = tree_create(headNode, kmer, config.k,
+									baseStatistics));
 
 					(*baseCounter)++;
 					baseStatistics[codedBase].Count++;
@@ -927,8 +927,8 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 				} else if (seqSize == config.k) {
 
 					//this case will occur less often than seqSize > config.k
-					headNode = tree_create(headNode, kmer, config.k,
-							baseStatistics);
+					COUNT_BASES_ONLY(headNode = tree_create(headNode, kmer, config.k,
+									baseStatistics));
 
 					for (int i = 0; i < config.k; i++) {
 						baseStatistics[kmer[i]].Count++;
@@ -1203,7 +1203,7 @@ int main(int argc, char *argv[]) {
 	statistics(&baseCounter, baseStatistics, &TotalNumSequencesN,
 			&maxNumberOfNodes);
 
-	fprintf(stdout, "Now creating histogram.\n");
+	COUNT_BASES_ONLY(fprintf(stdout, "Now creating histogram.\n"));
 
 	//create a temporary array for the recursive function to keep as scratch memory to hold the sequence.
 	int* histogram_temp = (int*) allocate_array(config.k, sizeof(int));
@@ -1213,14 +1213,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* print out the occurrence of every sequence of length k */
-	histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
-			baseStatistics, &TotalNumSequencesN);
+	COUNT_BASES_ONLY(histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
+					baseStatistics, &TotalNumSequencesN));
 
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 	//TODO destroy(headNode); not working!
 
-	DEBUG(fprintf(stdout, "\n"));
-	fprintf(stdout, "histogram creation finished.\n");
+	DEBUG(fprintf(stdout, "\n"));COUNT_BASES_ONLY(fprintf(stdout, "histogram creation finished.\n"));
 
 	if (fclose(config.out_file_pointer) == EOF) {
 		fprintf(stderr,
