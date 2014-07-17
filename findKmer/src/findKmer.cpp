@@ -60,7 +60,6 @@ using namespace std;
 #include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
 #include <stdlib.h> //malloc is in this.
 #include <fstream> // basic file operations
-
 /*
  * Below are some defaults you can setup at compile time.
  * Any combination of command line arguments can override these.
@@ -75,7 +74,7 @@ using namespace std;
 //#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
 
 #define DEFAULT_K_VALUE 5
-#define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Z score"
+#define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Shannon Entropy, Z score"
 #define DEFAULT_SUPPRESS_OUTPUT_VALUE 1
 #define DEFAULT_Z_THRESHOLD_ENABLE 0
 #define DEFAULT_Z_THRESHOLD 1000
@@ -93,8 +92,8 @@ using namespace std;
 
 //Holds the statistics for a base
 struct statistics_t {
-	unsigned int Count; //number of said base encountered.
-	long double Probability; //probability that this base will be encountered out of all bases.
+	unsigned int Count; //number of time this base was encountered in the entire file.
+	long double Probability; //probability that this base will be encountered out of all bases in the file.
 };
 /* Data structure for a tree.
  * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
@@ -106,9 +105,9 @@ struct statistics_t {
  * program treats it as an int elsewhere to save space.
  */
 struct node_t {
-	unsigned char base;
-	struct node_t *nextNodePtr[4];
-	unsigned int frequency;
+	unsigned char base; //the letter that this node holds. if depth = k then it is the last letter in the kmer sequence.
+	struct node_t *nextNodePtr[4]; //pointer to next node
+	unsigned int frequency; //number of times that this "sequence" was encountered in the whole file.
 };
 /* structure definition for configuration of file names, pointers, and length of k.
  * For enables: 0 == false, > 1 is true, < 1 means none supplied from user.
@@ -123,8 +122,9 @@ static struct conf {
 	long double zThreshold; //holds the minimum Z score value to print to outfile
 	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
 } config; /* Config is a GLOBAL VARIABLE for configuration of file names, pointers, and length of k.*/
+
 //Global variable that needs to be localized.
-unsigned long long int nodeCounter = 0;
+unsigned long long int nodeCounter = 0; //number of nodes created in memory.
 
 extern int recurse_factorial(int i) {
 	if (i > 1)
@@ -520,17 +520,7 @@ void statistics(unsigned long long * const baseCounter,
 	DEBUG(cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl);
 
 	COUNT_BASES_ONLY(
-			if (nodeCounter == (*maxNumberOfNodes)) {
-				fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k);
-				fprintf(stdout, "All possible kmers combinations were found.\n");
-			} else if (nodeCounter > (*maxNumberOfNodes)) {
-				fprintf(stderr,
-						"Error! too many nodes were created!\nThere may be a corruption of data!\n");
-				fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k);
-			} else {
-				fprintf(stdout, "FYI we did not find all possible combinations.\n");
-				fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations were found.\n",config.k);
-			});
+			if (nodeCounter == (*maxNumberOfNodes)) { fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k); fprintf(stdout, "All possible kmers combinations were found.\n"); } else if (nodeCounter > (*maxNumberOfNodes)) { fprintf(stderr, "Error! too many nodes were created!\nThere may be a corruption of data!\n"); fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k); } else { fprintf(stdout, "FYI we did not find all possible combinations.\n"); fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations were found.\n",config.k); });
 
 	free(stats_out_file_name);
 	fclose(stats_out_file_pointer);
@@ -701,32 +691,99 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 
 		//once we have exhausted all branches and free'd them, we check for depth of k.
 		if (depth == (k)) {
-			unsigned int kmerBaseStatistics[4] = { 0 };
+			statistics_t kmerBaseStatistics[4] = { 0 }; //This will hold data that is only for this single Kmer and not for the entire file.
 
+			DEBUG_STATISTICS(for (int i = 0; i < 4; i++) {
+						cout << kmerBaseStatistics[i].Count << " = count and "
+						<< kmerBaseStatistics[i].Probability
+						<< " = probability initially" << endl;
+					});
+
+			/*
+			 * count the number of times each base occurs. GATTACA,
+			 * kmerBaseStatistics[base2int('A')].Count = 3,kmerBaseStatistics[base2int('C')].Count = 1,
+			 * kmerBaseStatistics[base2int('G')].Count = 1, kmerBaseStatistics[base2int('T')].Count = 2,
+			 */
 			DEBUG_STATISTICS(cout << "pre traversing kmer" << endl);
-			for (int i = 0; i < k; i++) {
+			for (int location = 0; location < k; location++) {
 				DEBUG_STATISTICS(
-						cout << "i == " << i << endl;
-						cout << "array[i] == " << array[i] << endl;
-						cout << "kmerBaseStatistics[array[i]] == "
-						<< kmerBaseStatistics[array[i]] << endl;
+						cout << "location == " << location << endl;
+						cout << "array[location] == " << array[location].Count << endl;
+						cout << "kmerBaseStatistics[array[location]].Count == "
+						<< kmerBaseStatistics[array[location]].Count << endl;
 				);
 
-				kmerBaseStatistics[array[i]]++;
+				kmerBaseStatistics[array[location]].Count++; //increment the counter for this letter
 
-				DEBUG(fprintf(stdout, "%c", int2base(array[i])));
+				DEBUG(fprintf(stdout, "%c", int2base(array[location])));
 			}DEBUG(fprintf(stdout, ", %d\n", head->frequency));
 
-			double estimatedProportion = 1;
+			/*
+			 * Calculate Shannon Entropy to determine if a sequence contains information. it could be estimated
+			 * # of different bases in the sequence, # of bits estimated
+			 * 1, 0
+			 * 2, 1
+			 * 3, 2
+			 * 4, 2
+			 * Then multiply by the number of letters in the sequence.
+			 * AAAAAAAAA has zero bits of information.
+			 * GATTACA has 14 bits of information to encode the entire sequence and still be able to decode it.
+			 * H(X) = (over x) Σ P(x) * log2(1/P(x)) in bits
+			 * Where P(x) is the probability of the current letter occurring in the current KMER sequence.
+			 */
+			//calculate the probability
+			for (int i = 0; i < 4; i++) {
+				kmerBaseStatistics[i].Probability =
+						(double) kmerBaseStatistics[i].Count
+								/ (double) config.k;
+				DEBUG_STATISTICS(cout << kmerBaseStatistics[i].Probability << " = "<< kmerBaseStatistics[i].Count <<" / "<< config.k <<endl);
+			}
+
+			DEBUG_STATISTICS(for (int i = 0; i < 4; i++) {
+						cout << kmerBaseStatistics[i].Count << " = count and "
+						<< kmerBaseStatistics[i].Probability
+						<< " = probability calculate the probability" << endl;
+					}
+					getchar();
+			);
+
+			//calculate the number of bits to encode a single symbol
+			long double h = 0;
+			for (int i = 0; i < 4; i++) {
+				if (kmerBaseStatistics[i].Probability != 0)
+					h +=
+							(double) kmerBaseStatistics[i].Probability
+									* log2(
+											1
+													/ (double) kmerBaseStatistics[i].Probability);
+			}
+
+			DEBUG_STATISTICS(cout << h << " = h" << endl;
+					getchar(););
+
+			//calculate the number of bits to encode the entire sequence.
+			long double H = h * config.k;
+
+			DEBUG_STATISTICS(cout << H << " = H" << endl;
+					getchar(););
+
+			/*
+			 * Find the likely hood that this base occurred this many times randomly
+			 * based on the proportion of times that we found it in the file.
+			 * I.e. we found A 50% of the time, and we found it 3 times,
+			 * Run this on all possible bases A,C,G, and T
+			 * Thus creating a cumulative probability of finding this kmer based on occurrences of letters in kmer vs letters in entire file
+			 */
+			double estimatedProportion = 1; //proportion of finding this base in this kmer.
 			for (int i = 0; i < 4; i++) {
 				estimatedProportion *= pow(
 						(double) baseStatistics[i].Probability,
-						(double) kmerBaseStatistics[i]);
+						(double) kmerBaseStatistics[i].Count);
 
 				DEBUG_STATISTICS(
 						cout << "baseStatistics[i].Probability == "
 						<< baseStatistics[i].Probability << " raised to the "
-						<< kmerBaseStatistics[i] << "  == kmerBaseStatistics[i]"
+						<< kmerBaseStatistics[i].Count << "  == kmerBaseStatistics[i]"
 						<< endl;
 
 						cout << "estimatedProportion so far == " << estimatedProportion
@@ -735,9 +792,9 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 
 			}
 
-			//Perform statistical analysis and write to file.
-			unsigned long long n = *TotalNumSequencesN;
-			unsigned long long x = head->frequency; // x = number of successes that I have had given number than trials (x <= N)
+			//Find the Z score which is the normal binomial distribution from previously calculated values.
+			unsigned long long n = *TotalNumSequencesN; //total number of bases in the file.
+			unsigned long long x = head->frequency; // x = number of successes that I have had given the number of trials (x <= N)
 			long double p = estimatedProportion; // probability of success based on occurrences of letters in kmer vs letters in entire file
 			long double q = 1 - p; // probability of failure.
 			long double standardDev = sqrt(n * p * q);	//standard deviation
@@ -753,6 +810,12 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 				//if the threshold is not enabled OR (if the threshold is enabled and our z score is a minimum the Z threshold.)
 				DEBUG_STATISTICS(cout << config.zThresholdEnable << " config.zThresholdEnable, " << z << " = z, " << config.zThreshold<<" = config.zThreshold" <<endl);
 
+				/*
+				 * If there is no z filtering
+				 * Or if z filtering is enabled and the z score of this sequence is above it
+				 * Then we can print the data to the file
+				 *
+				 */
 				if (config.zThresholdEnable == 0
 						|| ((config.zThresholdEnable > 0)
 								&& (z >= config.zThreshold))) {
@@ -766,14 +829,21 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 					}
 					//print out the number of times that we saw the sequence.
 					fprintf(config.out_file_pointer, ", %d", head->frequency);
+
+					// print out the number of bits to encode the sequence.
+					fprintf(config.out_file_pointer, ", %LE", H);
+
 					//print out the Z score value if it is greater than or equal to the threshold.
 					fprintf(config.out_file_pointer, ", %LE", z);
+					// print higher precision, but the length of long double is undefined and in our experiments, we don't have any duplicate Z scores.
+					//fprintf(config.out_file_pointer, ", %.10LE", z);
 				}
 			} else {
-				DEBUG_STATISTICS(fprintf(stdout,
-								"Sequence was below Z threshold and was not printed.\n"));
+				fprintf(stderr,
+						"FYI A sequence was below Z threshold and was not printed.\n");
 			}
 
+			//OLD STUFF to verify that our procedure is working step by step.
 			//			float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x) * pow((double) p, (double) x)
 			DEBUG_STATISTICS(
 					cout << float_n_choose_k(n, x) << "   "
@@ -917,7 +987,8 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 				 */
 				if (seqSize > config.k) {
 
-					COUNT_BASES_ONLY(headNode = tree_create(headNode, kmer, config.k,
+					COUNT_BASES_ONLY(
+							headNode = tree_create(headNode, kmer, config.k,
 									baseStatistics));
 
 					(*baseCounter)++;
@@ -927,7 +998,8 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 				} else if (seqSize == config.k) {
 
 					//this case will occur less often than seqSize > config.k
-					COUNT_BASES_ONLY(headNode = tree_create(headNode, kmer, config.k,
+					COUNT_BASES_ONLY(
+							headNode = tree_create(headNode, kmer, config.k,
 									baseStatistics));
 
 					for (int i = 0; i < config.k; i++) {
@@ -1183,7 +1255,7 @@ int main(int argc, char *argv[]) {
 		usage();
 	print_conf(argc);
 
-	unsigned long int maxNumberOfNodes = estimate_RAM_usage();
+	unsigned long int maxNumberOfNodes = estimate_RAM_usage(); //Most number of nodes that can be created in memory.
 
 	/* Begin the procedure to extract valid sequences from file */
 	fprintf(stdout, "!!!Find The KMER!!!\n");
@@ -1193,8 +1265,8 @@ int main(int argc, char *argv[]) {
 
 	/* variables for the root of the tree */
 	node_t * headNode = NULL;
-	unsigned long long baseCounter = 0;
-	unsigned long long TotalNumSequencesN = 0;
+	unsigned long long baseCounter = 0; //number of bases that fit into a kmer in the entire file. GATTACA has baseCounter = 7 if k <= 7
+	unsigned long long TotalNumSequencesN = 0; //number of kmers found. if k = 2 then GATA has N=3.
 	statistics_t baseStatistics[4] = { 0 };
 
 	headNode = findKmer(headNode, &baseCounter, baseStatistics,
@@ -1213,13 +1285,15 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* print out the occurrence of every sequence of length k */
-	COUNT_BASES_ONLY(histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
+	COUNT_BASES_ONLY(
+			histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
 					baseStatistics, &TotalNumSequencesN));
 
 	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
 	//TODO destroy(headNode); not working!
 
-	DEBUG(fprintf(stdout, "\n"));COUNT_BASES_ONLY(fprintf(stdout, "histogram creation finished.\n"));
+	DEBUG(fprintf(stdout, "\n"));
+	COUNT_BASES_ONLY(fprintf(stdout, "histogram creation finished.\n"));
 
 	if (fclose(config.out_file_pointer) == EOF) {
 		fprintf(stderr,
