@@ -68,18 +68,21 @@ using namespace std;
  * The default suppress output value set to 1 OR GREATER will bypass DNA ID printing and getchar() breaks
  * The default z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
  */
-#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
+//#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
 //#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
-//#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
+#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
 //#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
 
-#define DEFAULT_K_VALUE 5
-#define OUT_FILE_COLUMN_HEADERS "Sequence, Frequency, Shannon Entropy, Z score"
-#define DEFAULT_SUPPRESS_OUTPUT_VALUE 1
+#define DEFAULT_K_VALUE 7
+#define OUT_FILE_COLUMN_HEADERS "Sequence, Shannon Entropy h, Shannon Entropy H, Frequency, Z score"
+#define DEFAULT_SUPPRESS_OUTPUT_VALUE 0
 #define DEFAULT_Z_THRESHOLD_ENABLE 0
 #define DEFAULT_Z_THRESHOLD 1000
 
-//This option will NOT make the tree in memory and will NOT create a valid histogram. it is only to save memory and count base occurances.
+/*
+ * Commenting out the last x will NOT make the tree in memory and will NOT create a valid histogram.
+ * It is only to save memory and count base occurrences.
+ */
 #define COUNT_BASES_ONLY(x) x
 
 //debugging
@@ -95,6 +98,7 @@ struct statistics_t {
 	unsigned int Count; //number of time this base was encountered in the entire file.
 	long double Probability; //probability that this base will be encountered out of all bases in the file.
 };
+
 /* Data structure for a tree.
  * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
  * holds the ranges of each data type.
@@ -109,6 +113,7 @@ struct node_t {
 	struct node_t *nextNodePtr[4]; //pointer to next node
 	unsigned int frequency; //number of times that this "sequence" was encountered in the whole file.
 };
+
 /* structure definition for configuration of file names, pointers, and length of k.
  * For enables: 0 == false, > 1 is true, < 1 means none supplied from user.
  */
@@ -217,6 +222,18 @@ void deallocate_array(void** array) {
 	free(*array);
 	*array = NULL;
 }
+//for testing purposes.
+void random_array(int sizeOfArray) {
+	//Initializing array to test code. this will come from the pre processed line
+	int *array = (int*) allocate_array(sizeOfArray, sizeof(int));
+	int* currentArrayPosition = array;
+	srand(time(NULL)); //seeding the random function.
+	for (int i = 0; i < sizeOfArray; i++) {
+		*currentArrayPosition = (rand() % 4);
+		currentArrayPosition++;
+	}
+	deallocate_array((void**) &array);
+}
 /* check that the given file can be read/written */
 void check_file(char *filename, char *mode) {
 	FILE *file = fopen(filename, mode);
@@ -317,7 +334,7 @@ void print_conf(int argc) {
 
 	//if suppressOutputEnable is false and no command line arguments have been given:
 	if (config.suppressOutputEnable == 0 && argc < 2) {
-		fprintf(stdout, "Press any key to proceed with this configuration.");
+		fprintf(stdout, "Press enter to proceed with this configuration.");
 		getchar();
 	}
 
@@ -460,7 +477,7 @@ int parse_arguments(int argc, char **argv) {
 			} else {
 				fprintf(stderr, "Ignoring invalid option %s\n", argv[i]);
 				if (config.suppressOutputEnable == 0) {
-					fprintf(stderr, "Press any key to continue.\n");
+					fprintf(stderr, "Press enter to continue.\n");
 					getchar();
 				}
 			}
@@ -475,7 +492,7 @@ void statistics(unsigned long long * const baseCounter,
 		unsigned long long * const TotalNumSequencesN,
 		unsigned long int * const maxNumberOfNodes) {
 	char* nameOfFile = "mer_Base_Stats_Of_";
-	char* outFileExension = "_.txt";
+	char* outFileExension = ".txt";
 
 	char* stats_out_file_name = (char*) allocate_array(
 			strlen("999") + strlen(nameOfFile) + strlen(config.sequence_file)
@@ -494,7 +511,8 @@ void statistics(unsigned long long * const baseCounter,
 	fprintf(stdout,
 			"Statistics of occurrences and probability of A, C, G and T respectively: \n");
 	for (int i = 0; i < 4; i++) {
-		DEBUG_STATISTICS(fprintf(stdout, "%u count / %llu baseCounter\n",baseStatistics[i].Count , *baseCounter));
+		DEBUG_STATISTICS(
+				fprintf(stdout, "%u count / %llu baseCounter\n",baseStatistics[i].Count , *baseCounter));
 
 		fprintf(stdout, "%u", baseStatistics[i].Count);
 
@@ -512,15 +530,18 @@ void statistics(unsigned long long * const baseCounter,
 	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
 			*baseCounter);
 
-	cout << (*TotalNumSequencesN) << " sequences of length k were found "
-			<< endl;
+	DEBUG(cout << (*TotalNumSequencesN) << " sequences of length k were found."<<endl<<" This is NOT the number of combinations found."
+			<< endl
 
-	DEBUG(cout << nodeCounter << " Nodes created " << endl);
+			cout << nodeCounter << " Nodes created " << endl;
 
-	DEBUG(cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl);
+			cout << (*maxNumberOfNodes) << " Max possible Nodes expected " << endl;);
+
+	fprintf(stdout, "%0.0f%% tree density.\n",
+			((double) (nodeCounter) / (double) (*maxNumberOfNodes)) * 100);
 
 	COUNT_BASES_ONLY(
-			if (nodeCounter == (*maxNumberOfNodes)) { fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k); fprintf(stdout, "All possible kmers combinations were found.\n"); } else if (nodeCounter > (*maxNumberOfNodes)) { fprintf(stderr, "Error! too many nodes were created!\nThere may be a corruption of data!\n"); fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k); } else { fprintf(stdout, "FYI we did not find all possible combinations.\n"); fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations were found.\n",config.k); });
+			if (nodeCounter == (*maxNumberOfNodes)) { fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k); fprintf(stdout, "All possible kmer combinations were found.\n"); } else if (nodeCounter > (*maxNumberOfNodes)) { fprintf(stderr, "Error! too many nodes were created!\nThere may be a corruption of data!\n"); fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k); } else { fprintf(stdout, "FYI we did not find all possible combinations.\n"); fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations.\n",config.k); });
 
 	free(stats_out_file_name);
 	fclose(stats_out_file_pointer);
@@ -575,7 +596,7 @@ char int2base(int integer) {
  *
  */
 node_t* node_create(int base) {
-	node_t* node = (node_t*) allocate_array(1, sizeof(node_t));
+	node_t* node = (node_t*) malloc(sizeof(node_t));
 	node->base = base;
 	node->frequency = 1;
 	node->nextNodePtr[0] = NULL;
@@ -592,8 +613,7 @@ node_t* node_create(int base) {
  */
 node_t* node_branch_enter_and_create(node_t* node, int base) {
 	DEBUG_TREE_CREATE(
-			fprintf(stdout, "..node_branch_enter_and_create for base %c\n",
-					int2base(base)));
+			fprintf(stdout, "..node_branch_enter_and_create for base %c\n", int2base(base)));
 	//if node doe
 	if (node->nextNodePtr[base] == NULL) {
 
@@ -613,8 +633,7 @@ node_t* node_branch_enter_and_create(node_t* node, int base) {
 			exit(EXIT_FAILURE);
 
 		}DEBUG_TREE_CREATE(
-				fprintf(stdout, "+++Incrementing counter to %d.\n",
-						node->nextNodePtr[base]->frequency));
+				fprintf(stdout, "+++Incrementing counter to %d.\n", node->nextNodePtr[base]->frequency));
 
 	}DEBUG_TREE_CREATE(fprintf(stdout, "..returning next base pointer.\n"));
 	return node->nextNodePtr[base];
@@ -631,7 +650,8 @@ node_t* tree_create(node_t* head, int* const array, int k,
 		statistics_t *baseStatistics) {
 	if (array != NULL) {
 		if (head == NULL) {
-			DEBUG_TREE_CREATE(fprintf(stdout, "-Creating the head of the tree!\n"));
+			DEBUG_TREE_CREATE(
+					fprintf(stdout, "-Creating the head of the tree!\n"));
 			head = node_create('H');
 		}
 		node_t *currentNode = head;
@@ -642,8 +662,8 @@ node_t* tree_create(node_t* head, int* const array, int k,
 		 * Also record how often each base (A, C, G or T).
 		 */
 		for (int i = 0; i < k; i++) {
-			DEBUG_TREE_CREATE(fprintf(stdout, "-Moving into a branch on depth %d\n", i);
-			);
+			DEBUG_TREE_CREATE(
+					fprintf(stdout, "-Moving into a branch on depth %d\n", i););
 			currentNode = node_branch_enter_and_create(currentNode, array[i]);
 
 		}
@@ -667,7 +687,7 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 		statistics_t * const baseStatistics,
 		unsigned long long * const TotalNumSequencesN) {
 	DEBUG_HISTO_AND_FREE_RECURSIVE(
-			fprintf(stdout, "histo&free @ depth %d of %d has %d\n",depth,*k,head != NULL?head->base:-1 ));
+			fprintf(stdout, "histo&free @ depth %d of %d has %d\n",depth,k,head != NULL?head->base:-1 ));
 
 	if (head == NULL) {
 		DEBUG_HISTO_AND_FREE_RECURSIVE(
@@ -684,7 +704,7 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 		//check each branch in this node even if we "think" its the leaf, to be safe
 		for (int i = 0; i < 4; i++) {
 			DEBUG_HISTO_AND_FREE_RECURSIVE(
-					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,*k,head != NULL?head->base:-1,i ));
+					fprintf(stdout, "histo&free @ depth %d of %d has %d checking branch %d\n",depth,k,head != NULL?head->base:-1,i ));
 			histo_recursive(head->nextNodePtr[i], array, depth + 1, k,
 					baseCounter, baseStatistics, TotalNumSequencesN);
 		}
@@ -693,10 +713,12 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 		if (depth == (k)) {
 			statistics_t kmerBaseStatistics[4] = { 0 }; //This will hold data that is only for this single Kmer and not for the entire file.
 
-			DEBUG_STATISTICS(for (int i = 0; i < 4; i++) {
+			DEBUG_STATISTICS(
+					for (int i = 0; i < 4; i++) {
 						cout << kmerBaseStatistics[i].Count << " = count and "
 						<< kmerBaseStatistics[i].Probability
-						<< " = probability initially" << endl;
+						<< " = probability initially" << endl
+						;
 					});
 
 			/*
@@ -707,11 +729,7 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 			DEBUG_STATISTICS(cout << "pre traversing kmer" << endl);
 			for (int location = 0; location < k; location++) {
 				DEBUG_STATISTICS(
-						cout << "location == " << location << endl;
-						cout << "array[location] == " << array[location].Count << endl;
-						cout << "kmerBaseStatistics[array[location]].Count == "
-						<< kmerBaseStatistics[array[location]].Count << endl;
-				);
+						cout << "location == " << location << endl; cout << "array[location] == " << array[location] << endl; cout << "kmerBaseStatistics[array[location]].Count == " << kmerBaseStatistics[array[location]].Count << endl;);
 
 				kmerBaseStatistics[array[location]].Count++; //increment the counter for this letter
 
@@ -730,21 +748,28 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 			 * GATTACA has 14 bits of information to encode the entire sequence and still be able to decode it.
 			 * H(X) = (over x) Σ P(x) * log2(1/P(x)) in bits
 			 * Where P(x) is the probability of the current letter occurring in the current KMER sequence.
+			 * TODO create a dynamic shannon entropy limit filter. H > 0 for sure but H > k would be ok, is H > k*2 ok? or k*4
 			 */
 			//calculate the probability
 			for (int i = 0; i < 4; i++) {
 				kmerBaseStatistics[i].Probability =
 						(double) kmerBaseStatistics[i].Count
 								/ (double) config.k;
-				DEBUG_STATISTICS(cout << kmerBaseStatistics[i].Probability << " = "<< kmerBaseStatistics[i].Count <<" / "<< config.k <<endl);
+				DEBUG_STATISTICS(
+						cout << kmerBaseStatistics[i].Probability << " = "
+						<< kmerBaseStatistics[i].Count << " / "
+						<< config.k << endl);
 			}
 
-			DEBUG_STATISTICS(for (int i = 0; i < 4; i++) {
+			DEBUG_STATISTICS(
+					for (int i = 0; i < 4; i++) {
 						cout << kmerBaseStatistics[i].Count << " = count and "
 						<< kmerBaseStatistics[i].Probability
-						<< " = probability calculate the probability" << endl;
+						<< " = probability calculate the probability"
+						<< endl
+						;
 					}
-					getchar();
+
 			);
 
 			//calculate the number of bits to encode a single symbol
@@ -758,14 +783,14 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 													/ (double) kmerBaseStatistics[i].Probability);
 			}
 
-			DEBUG_STATISTICS(cout << h << " = h" << endl;
-					getchar(););
+			DEBUG_STATISTICS(cout << h << " = h" << endl
+					; );
 
 			//calculate the number of bits to encode the entire sequence.
 			long double H = h * config.k;
 
-			DEBUG_STATISTICS(cout << H << " = H" << endl;
-					getchar(););
+			DEBUG_STATISTICS(cout << H << " = H" << endl
+					; );
 
 			/*
 			 * Find the likely hood that this base occurred this many times randomly
@@ -781,14 +806,9 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 						(double) kmerBaseStatistics[i].Count);
 
 				DEBUG_STATISTICS(
-						cout << "baseStatistics[i].Probability == "
-						<< baseStatistics[i].Probability << " raised to the "
-						<< kmerBaseStatistics[i].Count << "  == kmerBaseStatistics[i]"
-						<< endl;
+						cout << "baseStatistics[i].Probability == " << baseStatistics[i].Probability << " raised to the " << kmerBaseStatistics[i].Count << "  == kmerBaseStatistics[i]" << endl;
 
-						cout << "estimatedProportion so far == " << estimatedProportion
-						<< endl;
-				);
+						cout << "estimatedProportion so far == " << estimatedProportion << endl;);
 
 			}
 
@@ -801,14 +821,21 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 			long double mean = n * p; //average (population mean)
 			long double z = (x - mean) / standardDev; //calculate the z score
 
-			DEBUG_STATISTICS(cout << n << " = n, "<< x <<" = x, " << p << " = p, " << q << " = q, "<< standardDev << " = standardDev, " << mean << " = mean, " << z << " = z" <<endl);
+			DEBUG_STATISTICS(
+					cout << n << " = n, " << x << " = x, " << p << " = p, " << q
+					<< " = q, " << standardDev << " = standardDev, "
+					<< mean << " = mean, " << z << " = z" << endl);
 
 			//There is a test to see if we can do the normal approximation test or not.
 			bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
 			if (canDoNormalApprox == true) {
 				//http://www.cplusplus.com/reference/cstdio/printf/ was using %Le
 				//if the threshold is not enabled OR (if the threshold is enabled and our z score is a minimum the Z threshold.)
-				DEBUG_STATISTICS(cout << config.zThresholdEnable << " config.zThresholdEnable, " << z << " = z, " << config.zThreshold<<" = config.zThreshold" <<endl);
+				DEBUG_STATISTICS(
+						cout << config.zThresholdEnable
+						<< " config.zThresholdEnable, " << z << " = z, "
+						<< config.zThreshold << " = config.zThreshold"
+						<< endl);
 
 				/*
 				 * If there is no z filtering
@@ -823,85 +850,86 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 					//write the information to the file.
 					//start a new line.
 					fputc('\n', config.out_file_pointer);
+
 					//print out the sequence that we found.
 					for (int i = 0; i < k; i++) {
 						fputc(int2base(array[i]), config.out_file_pointer);
 					}
+
+					// print out the number of bits to encode a single symbol in the sequence.
+					fprintf(config.out_file_pointer, ", %LE", h);
+
+					// print out the number of bits to encode the entire sequence.
+					fprintf(config.out_file_pointer, ", %LE", H);
+
 					//print out the number of times that we saw the sequence.
 					fprintf(config.out_file_pointer, ", %d", head->frequency);
 
-					// print out the number of bits to encode the sequence.
-					fprintf(config.out_file_pointer, ", %LE", H);
-
 					//print out the Z score value if it is greater than or equal to the threshold.
 					fprintf(config.out_file_pointer, ", %LE", z);
+
 					// print higher precision, but the length of long double is undefined and in our experiments, we don't have any duplicate Z scores.
 					//fprintf(config.out_file_pointer, ", %.10LE", z);
 				}
 			} else {
 				fprintf(stderr,
-						"FYI A sequence was below Z threshold and was not printed.\n");
+						"FYI A sequence was below Z threshold and was not written to the file.\n");
 			}
 
 			//OLD STUFF to verify that our procedure is working step by step.
 			//			float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x) * pow((double) p, (double) x)
 			DEBUG_STATISTICS(
-					cout << float_n_choose_k(n, x) << "   "
-					<< pow((double) 1 - p, (double) n - x) << "   "
-					<< pow((double) p, (double) x) << endl;
-					cout
-					<< float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x)
-					* pow((double) p, (double) x) << endl;
-			);
+					cout << float_n_choose_k(n, x) << "   " << pow((double) 1 - p, (double) n - x) << "   " << pow((double) p, (double) x) << endl; cout << float_n_choose_k(n, x) * pow((double) 1 - p, (double) n - x) * pow((double) p, (double) x) << endl;);
 
 			DEBUG_STATISTICS(
-					{	long double answer = float_n_choose_k(*TotalNumSequencesN,
-								head->frequency);
+					{
+						long double answer = float_n_choose_k(
+								*TotalNumSequencesN, head->frequency);
 						long double binomialDistribution = answer
-						* pow((double) 1 - estimatedProportion,
-								(double) (*TotalNumSequencesN) - head->frequency)
-						* pow((double) estimatedProportion,
-								(double) head->frequency);
-						fprintf(config.out_file_pointer, ", %Le", binomialDistribution);
+						* pow((double ) 1 - estimatedProportion,
+								(double ) (*TotalNumSequencesN)
+								- head->frequency)
+						* pow((double ) estimatedProportion,
+								(double ) head->frequency);
+						fprintf(config.out_file_pointer, ", %Le",
+								binomialDistribution)
+						;
 
 						cout
 						<< "float_n_choose_k(TotalNumSequencesN, head->frequency) == float_n_choose_k( "
-						<< (*TotalNumSequencesN) << ", " << head->frequency << endl;
-
-						cout << float_n_choose_k((*TotalNumSequencesN), head->frequency)
-						<< "   "
-						<< pow((double) 1 - estimatedProportion,
-								(double) (*TotalNumSequencesN) - head->frequency)
-						<< "   "
-						<< pow((double) estimatedProportion,
-								(double) head->frequency) << endl;
+						<< (*TotalNumSequencesN) << ", "
+						<< head->frequency << endl
+						;
 
 						cout
-						<< float_n_choose_k((*TotalNumSequencesN), head->frequency)
-						* pow((double) 1 - estimatedProportion,
-								(double) (*TotalNumSequencesN)
+						<< float_n_choose_k((*TotalNumSequencesN),
+								head->frequency) << "   "
+						<< pow((double ) 1 - estimatedProportion,
+								(double ) (*TotalNumSequencesN)
+								- head->frequency) << "   "
+						<< pow((double ) estimatedProportion,
+								(double ) head->frequency) << endl
+						;
+
+						cout
+						<< float_n_choose_k((*TotalNumSequencesN),
+								head->frequency)
+						* pow((double ) 1 - estimatedProportion,
+								(double ) (*TotalNumSequencesN)
 								- head->frequency)
-						* pow((double) estimatedProportion,
-								(double) head->frequency) << endl;
-					}
-			);
+						* pow((double ) estimatedProportion,
+								(double ) head->frequency)
+						<< endl
+						;
+					});
 
 		}			//end if for reaching depth of k
 	}			//end else if for head == NULL
 }			//end histogram function.
-//for testing purposes.
-void random_array(int sizeOfArray) {
-	//Initializing array to test code. this will come from the pre processed line
-	int *array = (int*) allocate_array(sizeOfArray, sizeof(int));
-	int* currentArrayPosition = array;
-	srand(time(NULL)); //seeding the random function.
-	for (int i = 0; i < sizeOfArray; i++) {
-		*currentArrayPosition = (rand() % 4);
-		currentArrayPosition++;
-	}
-	deallocate_array((void**) &array);
-}
-
+/*
+ * This function brings in a pointer to an integer array and shifts its contents left.
+ * It also brings in an integer to insert into the array at the right most location.
+ */
 void shift_left_and_insert(int * const array, const int integer_to_insert) {
 	//DEBUG_SHIFT_AND_INSERT(printf("shift_left_and_insert:: received: %c. Starting with array : ",int2base(integer_to_insert)); for (int i = 0; i < config.k; i++) {printf("%c", int2base(*(array + i)));}printf("\n"););
 
@@ -914,7 +942,9 @@ void shift_left_and_insert(int * const array, const int integer_to_insert) {
 	DEBUG_SHIFT_AND_INSERT(
 			printf("shift_left_and_insert:: ending with array :                "); for (int i = 0; i < config.k; i++) {printf("%c", int2base(*(array + i)));}printf("\n"););
 }
-
+/*
+ * This function conforms to the description of this program above by reading a text file and creating a histogram of sequences of length k.
+ */
 node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 		statistics_t * const baseStatistics,
 		unsigned long long * const TotalNumSequencesN) {
@@ -1004,7 +1034,8 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 
 					for (int i = 0; i < config.k; i++) {
 						baseStatistics[kmer[i]].Count++;
-						DEBUG_STATISTICS(fprintf(stdout,"i == %d, int2base(kmer[i]) == %c, baseStatistics[kmer[i]].Count == %d.\n",i, int2base(kmer[i]),baseStatistics[kmer[i]].Count));
+						DEBUG_STATISTICS(
+								fprintf(stdout,"i == %d, int2base(kmer[i]) == %c, baseStatistics[kmer[i]].Count == %d.\n",i, int2base(kmer[i]),baseStatistics[kmer[i]].Count));
 
 					}DEBUG_STATISTICS(fprintf(stdout,"\n"));
 					(*baseCounter) += seqSize;
@@ -1017,7 +1048,6 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 
 	return headNode;
 }
-
 void scratch_function() {
 
 	{
@@ -1157,23 +1187,23 @@ void destroy(node_t *root) {
 	// recursively free its left and right children,
 	// and then free it.
 	if (root) {
-		DEBUG_FREE( cout << "found leaf " << endl);
+		DEBUG_FREE(cout << "found leaf " << endl);
 		for (int i = 0; i < 4; i++) {
 			DEBUG_FREE(cout << "branch " << i << endl);
 
 			destroy(root->nextNodePtr[i]);
-			if (root->nextNodePtr[i] == NULL) {
-				DEBUG_FREE(cout << "node destruction success" << endl);
-			}
-		}DEBUG_FREE(cout << "attempting free of base " << int2base(root->base) << endl);
+			root->nextNodePtr[i] = NULL;
+
+		}DEBUG_FREE(
+				cout << "attempting free of base " << int2base(root->base)
+				<< endl);
 		fflush(stdout);
 		free(root);
-		root = NULL;
+
 		DEBUG_FREE(cout << "out of free " << endl);
 	}
 
 }
-
 unsigned long int estimate_RAM_usage() {
 
 	if (sizeof(int) < 4 || sizeof(long int) < 8 || sizeof(long long int) < 8) {
@@ -1196,7 +1226,7 @@ unsigned long int estimate_RAM_usage() {
 		printf("sizeof(char) = %lu\n", sizeof(char));
 		printf("sizeof(node_t) = %lu\n", sizeof(node_t));
 		printf("sizeof(node_t*) = %lu\n", sizeof(node_t*));
-		cout << "Press any key to continue or you can abort the program now."
+		cout << "Press enter to continue or you can abort the program now."
 				<< endl;
 		if (config.suppressOutputEnable == 0) {
 			getchar();
@@ -1230,7 +1260,7 @@ unsigned long int estimate_RAM_usage() {
 		;
 		cout << "We are stopping here to make sure that is ok with you!"
 				<< endl;
-		cout << "Hit any key to proceed or else abort the program." << endl;
+		cout << "Hit enter to proceed or else abort the program." << endl;
 		if (config.suppressOutputEnable == 0) {
 			getchar();
 		}
@@ -1240,7 +1270,6 @@ unsigned long int estimate_RAM_usage() {
 	}
 	return maxNumberOfNodes;
 }
-
 int main(int argc, char *argv[]) {
 
 	/* Deal with command line arguments */
@@ -1263,7 +1292,7 @@ int main(int argc, char *argv[]) {
 	fprintf(stdout,
 			"     2858658142 bases in the reference genome FYI.\nThat is 2,858,658,142 by the way.\n");
 
-	/* variables for the root of the tree */
+	/* variable for the root of the tree */
 	node_t * headNode = NULL;
 	unsigned long long baseCounter = 0; //number of bases that fit into a kmer in the entire file. GATTACA has baseCounter = 7 if k <= 7
 	unsigned long long TotalNumSequencesN = 0; //number of kmers found. if k = 2 then GATA has N=3.
@@ -1278,7 +1307,12 @@ int main(int argc, char *argv[]) {
 	COUNT_BASES_ONLY(fprintf(stdout, "Now creating histogram.\n"));
 
 	//create a temporary array for the recursive function to keep as scratch memory to hold the sequence.
-	int* histogram_temp = (int*) allocate_array(config.k, sizeof(int));
+	//int* histogram_temp = (int*) allocate_array(config.k, sizeof(int));
+	int* histogram_temp = (int*) malloc(config.k * sizeof(int));
+	if (!histogram_temp) {
+		fprintf(stderr, "allocate_array():: memory allocation failed\n");
+		exit(EXIT_FAILURE);
+	}
 	//Initialize memory.
 	for (int i = 0; i < config.k; i++) {
 		*(histogram_temp + i) = -1;
@@ -1289,8 +1323,10 @@ int main(int argc, char *argv[]) {
 			histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
 					baseStatistics, &TotalNumSequencesN));
 
-	//TODO free the histogram_temp array...This kept throwing errors on me. free(histogram_temp);
-	//TODO destroy(headNode); not working!
+	//TODO free the histogram_temp array...This kept throwing errors on me.
+	free(histogram_temp);
+	//TODO  not working!
+	destroy(headNode);
 
 	DEBUG(fprintf(stdout, "\n"));
 	COUNT_BASES_ONLY(fprintf(stdout, "histogram creation finished.\n"));
@@ -1310,7 +1346,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	fprintf(stdout, "End of program was reached properly.\n\n");
-	fprintf(stderr, " "); //simply to trigger error to notify the user that we are done.
+	fprintf(stderr, " "); //simply to trigger error to notify the eclipse that we are done.
 //
 //	if (config.suppressOutputEnable == 0) {
 //		getchar();

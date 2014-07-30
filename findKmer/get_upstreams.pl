@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #This perl script extracts the most recent ensembl genes from a given database and creates a file of
-#their upstream regions 
+#their upstream regions. chmod 777 get_upstreams.pl 
 
 use strict;
 
