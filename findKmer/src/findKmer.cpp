@@ -16,6 +16,8 @@
  *    4. Conditions of any other entities that contributed to this are also
  *       met. If a copyright notice is present from another entity, it must
  *       be maintained in redistributions of the source code.
+ *    5. You notify the author and give your intentions.
+ *       Notification can be given to kab8c8 at mail dot missouri dot edu
  *
  * THIS INTELLECTUAL PROPERTY (WHICH MAY INCLUDE BUT IS NOT LIMITED TO SOFTWARE,
  * FIRMWARE, VHDL, etc) IS PROVIDED BY  THE AUTHOR AND WASHINGTON UNIVERSITY
@@ -60,6 +62,7 @@ using namespace std;
 #include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
 #include <stdlib.h> //malloc is in this.
 #include <fstream> // basic file operations
+#include "cmdlineParser.h" //header file for object oriented command line parser. use "" for local files.
 /*
  * Below are some defaults you can setup at compile time.
  * Any combination of command line arguments can override these.
@@ -74,10 +77,16 @@ using namespace std;
 //#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
 
 #define DEFAULT_K_VALUE 7
-#define OUT_FILE_COLUMN_HEADERS "Sequence, Shannon Entropy h, Shannon Entropy H, Frequency, Z score"
 #define DEFAULT_SUPPRESS_OUTPUT_VALUE 0
 #define DEFAULT_Z_THRESHOLD_ENABLE 0
 #define DEFAULT_Z_THRESHOLD 1000
+
+/*
+ * This will appear as the first line of the output file.
+ * We put the shannon entropy after the sequence because it is common to the sequence on both the genome and the upstream.
+ * The frequency is not constant but the hope was that it would make combining files easier by grouping common things and uncommon things.
+ */
+#define OUT_FILE_COLUMN_HEADERS "Sequence, Shannon Entropy h, Shannon Entropy H, Frequency, Z score"
 
 /*
  * Commenting out the last x will NOT make the tree in memory and will NOT create a valid histogram.
