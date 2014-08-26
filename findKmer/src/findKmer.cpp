@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2007 Michela Becchi and Washington University in St. Louis.
+ * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang, and Michela Becchi and University of Missouri in Columbia.
  * All rights reserved
- *
+ *s
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
