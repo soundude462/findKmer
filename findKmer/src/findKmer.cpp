@@ -65,7 +65,8 @@ using namespace std;
 
 //API creation header files.
 #include "cmdlineParser.h" //header file for object oriented command line parser. use "" for local files.
-#include "stdinc.h"
+#include "findKmerInclude.h"
+
 
 /*
  * Below are some defaults you can setup at compile time.
@@ -1285,8 +1286,8 @@ unsigned long int estimate_RAM_usage() {
 }
 int main(int argc, char *argv[]) {
 
-	cmdline_parser * cmdLineParser = new cmdline_parser();
-	delete cmdLineParser;
+	cmdline_parser * commandLineParser = new cmdline_parser();
+	delete commandLineParser;
 
 	/* Deal with command line arguments */
 	DEBUG(

@@ -43,12 +43,15 @@
 
 #ifndef CMDLINEPARSER_H_
 #define CMDLINEPARSER_H_
-
+#include "findKmerInclude.h"
+using namespace std;
+#include <iostream>
 #include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include <time.h>
 #include <math.h>
+#include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
+#include <stdlib.h> //malloc is in this.
+#include <fstream> // basic file operations
 
 class cmdline_parser{
 	char *sequence_file; //holds the string representation of the file name.

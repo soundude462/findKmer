@@ -1,10 +1,9 @@
 /*
  * ============================================================================
- * stdinc.h of findKmer project.
- * This header is to be included in every header file within the project.
+ * findKmerInclude.h of findKmer project.
  *
  *  Created on: Aug 27, 2014
- *      Author: Kalen A. Brown
+ *      Author: Kalen Brown 
  * 
  * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang, 
  * Michela Becchi and University of Missouri in Columbia.
@@ -42,8 +41,9 @@
  * ============================================================================
  */
 
-#ifndef STDINC_H_
-#define STDINC_H_
+#ifndef FINDKMERINCLUDE_H_
+#define FINDKMERINCLUDE_H_
+
 
 //previously included headers taken from original findKmer.cpp file.
 using namespace std;
@@ -67,4 +67,4 @@ inline void warning(char* p) { fprintf(stderr,"Warning:%s \n",p); }
 inline void fatal(char* string) {fprintf(stderr,"Fatal:%s\n",string); exit(1); }
 
 
-#endif /* STDINC_H_ */
+#endif /* FINDKMERINCLUDE_H_ */

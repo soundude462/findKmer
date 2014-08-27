@@ -43,22 +43,30 @@
 #include "cmdlineParser.h"
 
 cmdline_parser::cmdline_parser() {
-	 sequence_file = NULL;
-	 sequence_file_pointer = NULL;
-	 out_file = NULL;
-	 out_file_pointer = NULL;
-	 k = 0;
-	 suppressOutputEnable = -1;
-	 zThresholdEnable = -1;
-	 zThreshold = -1;
+	sequence_file = NULL;
+	sequence_file_pointer = NULL;
+	out_file = NULL;
+	out_file_pointer = NULL;
+	k = 0;
+	suppressOutputEnable = -1;
+	zThresholdEnable = -1;
+	zThreshold = -1;
 }
 
 cmdline_parser::~cmdline_parser() {
-	delete(sequence_file);
-	delete(out_file);
-	free(sequence_file);
-	free(out_file);
-	fclose(sequence_file_pointer);
-	fclose(out_file_pointer);
+	//free the file name strings.
+	delete (sequence_file);
+	delete (out_file);
+	//free(sequence_file);
+	//free(out_file);
+
+	//If we try to use fclose on a null pointer then the program crashes.
+	if (sequence_file_pointer) {
+		fclose(sequence_file_pointer);
+	}
+
+	if (out_file_pointer) {
+		fclose(out_file_pointer);
+	}
 
 }
