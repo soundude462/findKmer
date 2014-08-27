@@ -55,7 +55,70 @@ using namespace std;
 #include <stdlib.h> //malloc is in this.
 #include <fstream> // basic file operations
 
-//Extra functions taken from Dr. Becchi's stdinc.h file.
+
+
+
+/*
+ * Below are some defaults you can setup at compile time.
+ * Any combination of command line arguments can override these.
+ * Default sequence file names must be a string literal with file extension.
+ * These macros may bypass the error checking scheme!
+ * The default suppress output value set to 1 OR GREATER will bypass DNA ID printing and getchar() breaks
+ * The default z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
+ */
+//#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
+//#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
+#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
+//#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
+
+#define DEFAULT_K_VALUE 7
+#define DEFAULT_SUPPRESS_OUTPUT_VALUE 0
+#define DEFAULT_Z_THRESHOLD_ENABLE 0
+#define DEFAULT_Z_THRESHOLD 1000
+
+/*
+ * This will appear as the first line of the output file.
+ * We put the shannon entropy after the sequence because it is common to the sequence on both the genome and the upstream.
+ * The frequency is not constant but the hope was that it would make combining files easier by grouping common things and uncommon things.
+ */
+#define OUT_FILE_COLUMN_HEADERS "Sequence, Shannon Entropy h, Shannon Entropy H, Frequency, Z score"
+
+/*
+ * Commenting out the last x will NOT make the tree in memory and will NOT create a valid histogram.
+ * It is only to save memory and count base occurrences.
+ */
+#define COUNT_BASES_ONLY(x) x
+
+//debugging
+#define DEBUG(x) //x
+#define DEBUG_TREE_CREATE(x) //x
+#define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
+#define DEBUG_SHIFT_AND_INSERT(x) //x
+#define DEBUG_STATISTICS(x) //x
+#define DEBUG_FREE(x) //x
+
+//Holds the statistics for a base
+struct statistics_t {
+	unsigned int Count; //number of time this base was encountered in the entire file.
+	long double Probability; //probability that this base will be encountered out of all bases in the file.
+};
+
+/* Data structure for a tree.
+ * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
+ * holds the ranges of each data type.
+ * The number of bases in the human genome is
+ * 2,858,658,142 bases which is less than a signed int.
+ * Unsigned int has a range of 4,294,967,295
+ * Unsigned char is used for the base even though the
+ * program treats it as an int elsewhere to save space.
+ */
+struct node_t {
+	unsigned char base; //the letter that this node holds. if depth = k then it is the last letter in the kmer sequence.
+	struct node_t *nextNodePtr[4]; //pointer to next node
+	unsigned int frequency; //number of times that this "sequence" was encountered in the whole file.
+};
+
+//Not yet used: Extra functions taken from Dr. Becchi's stdinc.h file.
 /* max and min */
 inline int max(int x, int y) { return x > y ? x : y; }
 inline double max(double x, double y) { return x > y ? x : y; }

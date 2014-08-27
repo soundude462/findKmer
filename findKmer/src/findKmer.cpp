@@ -54,79 +54,12 @@
 // Fixed bugs  : Verified that the tree is actually creating the correct number of nodes. # of nodes != 4^k; see estimate ram usage.
 // Compile     : g++  -o "findKmer" [-O3 seems to work OK but unknown benefit]
 //============================================================================
-using namespace std;
-#include <iostream>
-#include <stdio.h>
-#include <time.h>
-#include <math.h>
-#include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
-#include <stdlib.h> //malloc is in this.
-#include <fstream> // basic file operations
+
 
 //API creation header files.
-#include "cmdlineParser.h" //header file for object oriented command line parser. use "" for local files.
 #include "findKmer.h"
-
-
-/*
- * Below are some defaults you can setup at compile time.
- * Any combination of command line arguments can override these.
- * Default sequence file names must be a string literal with file extension.
- * These macros may bypass the error checking scheme!
- * The default suppress output value set to 1 OR GREATER will bypass DNA ID printing and getchar() breaks
- * The default z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
- */
-//#define DEFAULT_SEQUENCE_FILE_NAME "homo_sapiensupstream.fas"
-//#define DEFAULT_SEQUENCE_FILE_NAME "Full_homo_sapiens.fa"
-#define DEFAULT_SEQUENCE_FILE_NAME "test.txt"
-//#define DEFAULT_SEQUENCE_FILE_NAME "shortend_test_Homo_sapiens_1_and_2.fa"
-
-#define DEFAULT_K_VALUE 7
-#define DEFAULT_SUPPRESS_OUTPUT_VALUE 0
-#define DEFAULT_Z_THRESHOLD_ENABLE 0
-#define DEFAULT_Z_THRESHOLD 1000
-
-/*
- * This will appear as the first line of the output file.
- * We put the shannon entropy after the sequence because it is common to the sequence on both the genome and the upstream.
- * The frequency is not constant but the hope was that it would make combining files easier by grouping common things and uncommon things.
- */
-#define OUT_FILE_COLUMN_HEADERS "Sequence, Shannon Entropy h, Shannon Entropy H, Frequency, Z score"
-
-/*
- * Commenting out the last x will NOT make the tree in memory and will NOT create a valid histogram.
- * It is only to save memory and count base occurrences.
- */
-#define COUNT_BASES_ONLY(x) x
-
-//debugging
-#define DEBUG(x) //x
-#define DEBUG_TREE_CREATE(x) //x
-#define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
-#define DEBUG_SHIFT_AND_INSERT(x) //x
-#define DEBUG_STATISTICS(x) //x
-#define DEBUG_FREE(x) //x
-
-//Holds the statistics for a base
-struct statistics_t {
-	unsigned int Count; //number of time this base was encountered in the entire file.
-	long double Probability; //probability that this base will be encountered out of all bases in the file.
-};
-
-/* Data structure for a tree.
- * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
- * holds the ranges of each data type.
- * The number of bases in the human genome is
- * 2,858,658,142 bases which is less than a signed int.
- * Unsigned int has a range of 4,294,967,295
- * Unsigned char is used for the base even though the
- * program treats it as an int elsewhere to save space.
- */
-struct node_t {
-	unsigned char base; //the letter that this node holds. if depth = k then it is the last letter in the kmer sequence.
-	struct node_t *nextNodePtr[4]; //pointer to next node
-	unsigned int frequency; //number of times that this "sequence" was encountered in the whole file.
-};
+#include "cmdlineParser.h" //header file for object oriented command line parser. use "" for local files.
+#include "memMgt.h"
 
 /* structure definition for configuration of file names, pointers, and length of k.
  * For enables: 0 == false, > 1 is true, < 1 means none supplied from user.
@@ -1274,8 +1207,8 @@ unsigned long int estimate_RAM_usage() {
 		;
 		cout << "We are stopping here to make sure that is ok with you!"
 				<< endl;
-		cout << "Hit enter to proceed or else abort the program." << endl;
 		if (config.suppressOutputEnable == 0) {
+			cout << "Hit enter to proceed or else abort the program." << endl;
 			getchar();
 		}
 	} else {
@@ -1286,8 +1219,9 @@ unsigned long int estimate_RAM_usage() {
 }
 int main(int argc, char *argv[]) {
 
-	cmdline_parser * commandLineParser = new cmdline_parser();
-	delete commandLineParser;
+	cmdline_parser * configObject = new cmdline_parser();
+	//configObject->usage();
+	delete configObject;
 
 	/* Deal with command line arguments */
 	DEBUG(
@@ -1297,8 +1231,8 @@ int main(int argc, char *argv[]) {
 
 	init_conf();
 	usage();
-	while (!parse_arguments(argc, argv))
-		usage();
+	parse_arguments(argc, argv);
+
 	print_conf(argc);
 
 	unsigned long int maxNumberOfNodes = estimate_RAM_usage(); //Most number of nodes that can be created in memory.

@@ -1,11 +1,11 @@
 /*
  * ============================================================================
- * cmdLineParser.h of findKmer project.
+ * memMgt.h of findKmer project.
  *
- *  Created on: Aug 26, 2014
- *      Author: Kalen A. Brown
- *
- * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang,
+ *  Created on: Aug 27, 2014
+ *      Author: Kalen Brown 
+ * 
+ * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang, 
  * Michela Becchi and University of Missouri in Columbia.
  * All rights reserved
  *
@@ -41,51 +41,20 @@
  * ============================================================================
  */
 
-#ifndef CMDLINEPARSER_H_
-#define CMDLINEPARSER_H_
+#ifndef MEMMGT_H_
+#define MEMMGT_H_
 #include "findKmer.h"
-#include "memMgt.h"
-
-class cmdline_parser {
-
+/*
+ *
+ */
+class memMgt {
 public:
-	//instantiates the parser
-	cmdline_parser();
-
-	//parser de-allocator
-	~cmdline_parser();
-
-	//prints command line arguments that are available.
-	void usage();
-
-	int parse_arguments(int argc, char **argv);
-
-	//print the current configuration
-	void print_conf(int argc);
-
-	int getK() const;
-	char* getOutFile() const;
-	const FILE* getOutFilePointer() const;
-	char* getSequenceFile() const;
-	const FILE* getSequenceFilePointer() const;
-	int getSuppressOutputEnable() const;
-	long double getThreshold() const;
-	int getThresholdEnable() const;
-	void check_file(char *filename, char *mode);
+	memMgt();
+	void *allocate_array(int size, size_t element_size);
+	virtual ~memMgt();
 	unsigned long int getTotalAllocatedBytes() const;
-	unsigned long int estimate_RAM_usage();
 private:
-	char *sequence_file; //holds the string representation of the file name.
-	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
-	char *out_file;		//holds the string representation of the file name.
-	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
-	int k; //holds the length of k for the size of the sequence to be recorded.
-	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
-	long double zThreshold; //holds the minimum Z score value to print to outfile
-	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
-	memMgt * memMgr;
-
-	void set_default_conf();
+	unsigned long int TotalAllocatedBytes;
 };
 
-#endif /* CMDLINEPARSER_H_ */
+#endif /* MEMMGT_H_ */
