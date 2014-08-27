@@ -1,11 +1,12 @@
 /*
  * ============================================================================
- * cmdLineParser.h of findKmer project.
+ * stdinc.h of findKmer project.
+ * This header is to be included in every header file within the project.
  *
- *  Created on: Aug 26, 2014
+ *  Created on: Aug 27, 2014
  *      Author: Kalen A. Brown
- *
- * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang,
+ * 
+ * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang, 
  * Michela Becchi and University of Missouri in Columbia.
  * All rights reserved
  *
@@ -41,39 +42,29 @@
  * ============================================================================
  */
 
-#ifndef CMDLINEPARSER_H_
-#define CMDLINEPARSER_H_
+#ifndef STDINC_H_
+#define STDINC_H_
 
+//previously included headers taken from original findKmer.cpp file.
+using namespace std;
+#include <iostream>
 #include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include <time.h>
 #include <math.h>
+#include <string.h> //for strcmp(string1,string2) string comparison returns a 0 if they are the same.
+#include <stdlib.h> //malloc is in this.
+#include <fstream> // basic file operations
 
-class cmdline_parser{
-	char *sequence_file; //holds the string representation of the file name.
-	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
-	char *out_file;		//holds the string representation of the file name.
-	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
-	int k; //holds the length of k for the size of the sequence to be recorded.
-	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
-	long double zThreshold; //holds the minimum Z score value to print to outfile
-	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
+//Extra functions taken from Dr. Becchi's stdinc.h file.
+/* max and min */
+inline int max(int x, int y) { return x > y ? x : y; }
+inline double max(double x, double y) { return x > y ? x : y; }
+inline int min(int x, int y) { return x < y ? x : y; }
+inline double min(double x, double y) { return x < y ? x : y; }
 
-public:
-	//instantiates the parser
-	cmdline_parser();
-
-	//parser de-allocator
-	~cmdline_parser();
+/* warnings and errors */
+inline void warning(char* p) { fprintf(stderr,"Warning:%s \n",p); }
+inline void fatal(char* string) {fprintf(stderr,"Fatal:%s\n",string); exit(1); }
 
 
-
-private:
-
-};
-
-
-
-
-#endif /* CMDLINEPARSER_H_ */
+#endif /* STDINC_H_ */

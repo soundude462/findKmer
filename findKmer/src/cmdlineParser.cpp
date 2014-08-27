@@ -1,5 +1,12 @@
 /*
- * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang, and Michela Becchi and University of Missouri in Columbia.
+ * ============================================================================
+ * cmdLineParser.cpp of findKmer project.
+ *
+ *  Created on: Aug 26, 2014
+ *      Author: Kalen A. Brown
+ *
+ * Copyright (c) 2014 Kalen A. Brown, August C. Thies, Gavin Conant, Xiang Wang,
+ * Michela Becchi and University of Missouri in Columbia.
  * All rights reserved
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -10,7 +17,7 @@
  *    2. Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *    3. The name of the author or Washington University may not be used
+ *    3. The name of the author or the University may not be used
  *       to endorse or promote products derived from this source code
  *       without specific prior written permission.
  *    4. Conditions of any other entities that contributed to this are also
@@ -20,10 +27,10 @@
  *       Notification can be given to kab8c8 at mail dot missouri dot edu
  *
  * THIS INTELLECTUAL PROPERTY (WHICH MAY INCLUDE BUT IS NOT LIMITED TO SOFTWARE,
- * FIRMWARE, VHDL, etc) IS PROVIDED BY  THE AUTHOR AND WASHINGTON UNIVERSITY
+ * FIRMWARE, VHDL, etc) IS PROVIDED BY  THE AUTHOR AND THE UNIVERSITY
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR WASHINGTON UNIVERSITY
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR THE UNIVERSITY
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -31,16 +38,27 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS INTELLECTUAL PROPERTY, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * */
-
-/*
- * cmdlineParser.cpp
- *
- *  Created on: Aug 26, 2014
- *      Author: kalen
+ * ============================================================================
  */
-
 #include "cmdlineParser.h"
 
+cmdline_parser::cmdline_parser() {
+	 sequence_file = NULL;
+	 sequence_file_pointer = NULL;
+	 out_file = NULL;
+	 out_file_pointer = NULL;
+	 k = 0;
+	 suppressOutputEnable = -1;
+	 zThresholdEnable = -1;
+	 zThreshold = -1;
+}
 
+cmdline_parser::~cmdline_parser() {
+	delete(sequence_file);
+	delete(out_file);
+	free(sequence_file);
+	free(out_file);
+	fclose(sequence_file_pointer);
+	fclose(out_file_pointer);
+
+}
