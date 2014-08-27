@@ -65,7 +65,7 @@ using namespace std;
 
 //API creation header files.
 #include "cmdlineParser.h" //header file for object oriented command line parser. use "" for local files.
-#include "findKmerInclude.h"
+#include "findKmer.h"
 
 
 /*

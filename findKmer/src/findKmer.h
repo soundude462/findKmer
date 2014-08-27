@@ -1,6 +1,6 @@
 /*
  * ============================================================================
- * findKmerInclude.h of findKmer project.
+ * FINDKMER.h of findKmer project.
  *
  *  Created on: Aug 27, 2014
  *      Author: Kalen Brown 
@@ -41,8 +41,8 @@
  * ============================================================================
  */
 
-#ifndef FINDKMERINCLUDE_H_
-#define FINDKMERINCLUDE_H_
+#ifndef FINDKMER_H_
+#define FINDKMER_H_
 
 
 //previously included headers taken from original findKmer.cpp file.
@@ -67,4 +67,4 @@ inline void warning(char* p) { fprintf(stderr,"Warning:%s \n",p); }
 inline void fatal(char* string) {fprintf(stderr,"Fatal:%s\n",string); exit(1); }
 
 
-#endif /* FINDKMERINCLUDE_H_ */
+#endif /* FINDKMER_H_ */

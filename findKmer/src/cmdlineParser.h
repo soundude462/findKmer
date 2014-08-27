@@ -43,7 +43,7 @@
 
 #ifndef CMDLINEPARSER_H_
 #define CMDLINEPARSER_H_
-#include "findKmerInclude.h"
+#include "findKmer.h"
 using namespace std;
 #include <iostream>
 #include <stdio.h>
