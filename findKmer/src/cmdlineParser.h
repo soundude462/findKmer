@@ -63,21 +63,27 @@ public:
 	//print the current configuration
 	void print_conf(int argc);
 
+	//Check to see if the file can be opened in the given mode.
+	void check_file(const char* filename, const char* mode);
+
+	//Estimates RAM usage given the current configuration.
+	unsigned long int estimate_RAM_usage();
+
+	//Simple Getters
 	int getK() const;
-	char* getOutFile() const;
 	const FILE* getOutFilePointer() const;
-	char* getSequenceFile() const;
 	const FILE* getSequenceFilePointer() const;
 	int getSuppressOutputEnable() const;
 	long double getThreshold() const;
 	int getThresholdEnable() const;
-	void check_file(char *filename, char *mode);
 	unsigned long int getTotalAllocatedBytes() const;
-	unsigned long int estimate_RAM_usage();
+	const char* getSequenceFileName() const;
+	char* getOutFileName() const;
+
 private:
-	char *sequence_file; //holds the string representation of the file name.
+	const char *sequence_file_name; //holds the string representation of the file name.
 	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
-	char *out_file;		//holds the string representation of the file name.
+	char *out_file_name;		//holds the string representation of the file name.
 	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
 	int k; //holds the length of k for the size of the sequence to be recorded.
 	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
@@ -89,3 +95,22 @@ private:
 };
 
 #endif /* CMDLINEPARSER_H_ */
+
+////Getter
+//int getK() const;
+////Getter
+//const FILE* getOutFilePointer() const;
+////Getter
+//const FILE* getSequenceFilePointer() const;
+////Getter
+//int getSuppressOutputEnable() const;
+////Getter
+//long double getThreshold() const;
+////Getter
+//int getThresholdEnable() const;
+////Getter
+//unsigned long int getTotalAllocatedBytes() const;
+////Getter
+//const char* getSequenceFileName() const;
+////Getter
+//char* getOutFileName() const;

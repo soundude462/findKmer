@@ -51,6 +51,7 @@ class memMgt {
 public:
 	memMgt();
 	void *allocate_array(int size, size_t element_size);
+	int deallocate_array(void ** array,int size, size_t element_size);
 	virtual ~memMgt();
 	unsigned long int getTotalAllocatedBytes() const;
 private:

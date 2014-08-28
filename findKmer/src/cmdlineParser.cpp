@@ -43,9 +43,9 @@
 #include "cmdlineParser.h"
 
 cmdline_parser::cmdline_parser() {
-	sequence_file = NULL;
+	sequence_file_name = NULL;
 	sequence_file_pointer = NULL;
-	out_file = NULL;
+	out_file_name = NULL;
 	out_file_pointer = NULL;
 	k = 0;
 	suppressOutputEnable = -1;
@@ -56,8 +56,8 @@ cmdline_parser::cmdline_parser() {
 
 cmdline_parser::~cmdline_parser() {
 	//free the file name strings.
-	delete (sequence_file);
-	delete (out_file);
+	delete (sequence_file_name);
+	delete (out_file_name);
 	//free(sequence_file);
 	//free(out_file);
 
@@ -70,34 +70,6 @@ cmdline_parser::~cmdline_parser() {
 		fclose(out_file_pointer);
 	}
 
-}
-
-int cmdline_parser::getK() const {
-	return k;
-}
-
-char* cmdline_parser::getOutFile() const {
-	return out_file;
-}
-
-const FILE* cmdline_parser::getOutFilePointer() const {
-	return out_file_pointer;
-}
-
-char* cmdline_parser::getSequenceFile() const {
-	return sequence_file;
-}
-
-const FILE* cmdline_parser::getSequenceFilePointer() const {
-	return sequence_file_pointer;
-}
-
-int cmdline_parser::getSuppressOutputEnable() const {
-	return suppressOutputEnable;
-}
-
-long double cmdline_parser::getThreshold() const {
-	return zThreshold;
 }
 
 void cmdline_parser::usage() {
@@ -144,7 +116,7 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 				if (argv[i] != NULL) {
 					check_file(argv[i], "w");
 				}
-				this->out_file = argv[i];
+				this->out_file_name = argv[i];
 			} else if (strcmp(argv[i], "-p") == 0
 					|| strcmp(argv[i], "--parse") == 0) {
 				i++;
@@ -157,7 +129,7 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 					check_file(argv[i], "r");
 				}
 
-				this->sequence_file = argv[i];
+				this->sequence_file_name = argv[i];
 			} else if (strcmp(argv[i], "-k") == 0
 					|| strcmp(argv[i], "--ksize") == 0) {
 				i++;
@@ -223,10 +195,10 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 void cmdline_parser::print_conf(int argc) {
 	fprintf(stdout, "\nATTEMPTING CONFIGURATION: \n");
 	this->set_default_conf();
-	if (this->sequence_file)
-		fprintf(stdout, "- sequence_file file: %s\n", this->sequence_file);
-	if (this->out_file)
-		fprintf(stdout, "- export file: %s\n", this->out_file);
+	if (this->sequence_file_name)
+		fprintf(stdout, "- sequence_file file: %s\n", this->sequence_file_name);
+	if (this->out_file_name)
+		fprintf(stdout, "- export file: %s\n", this->out_file_name);
 	if (this->k)
 		fprintf(stdout, "- k size: %d\n", this->k);
 
@@ -257,14 +229,14 @@ void cmdline_parser::print_conf(int argc) {
 		exit(EXIT_FAILURE);
 	}
 
-	if ((this->sequence_file_pointer = fopen(this->sequence_file, "r")) != NULL) {
+	if ((this->sequence_file_pointer = fopen(this->sequence_file_name, "r")) != NULL) {
 		//fprintf(stdout, "Sequence file opened properly\n");
 	} else {
 		fprintf(stderr, "Sequence file failed to open\n\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if ((this->out_file_pointer = fopen(this->out_file, "w")) != NULL) {
+	if ((this->out_file_pointer = fopen(this->out_file_name, "w")) != NULL) {
 		//fprintf(stdout, "Out file opened properly\n");
 		fprintf(this->out_file_pointer, OUT_FILE_COLUMN_HEADERS);
 	} else {
@@ -282,7 +254,8 @@ int cmdline_parser::getThresholdEnable() const {
 	return zThresholdEnable;
 }
 
-void cmdline_parser::check_file(char* filename, char* mode) {
+/* check that the given file can be read/written */
+void cmdline_parser::check_file(const char* filename, const char* mode) {
 	FILE *file = fopen(filename, mode);
 	if (file == NULL) {
 		fprintf(stderr,
@@ -365,8 +338,10 @@ unsigned long int cmdline_parser::estimate_RAM_usage() {
 
 void cmdline_parser::set_default_conf() {
 
-	if (!this->sequence_file) {
-		this->sequence_file = DEFAULT_SEQUENCE_FILE_NAME;
+	if (!this->sequence_file_name) {
+		//here we transfer the string literal properly.
+		const char* tempFileName = DEFAULT_SEQUENCE_FILE_NAME;
+		this->sequence_file_name = tempFileName;
 	}
 
 	if (!this->k) {
@@ -388,27 +363,59 @@ void cmdline_parser::set_default_conf() {
 		this->zThreshold = DEFAULT_Z_THRESHOLD;
 	}
 
-	if (!this->out_file) {
-		char* nameOfFile = "mer_Historam_Of_";
-		char* outFileExension = ".csv";
-		char* zScoreFiltered = "zScoreFiltered";
-
+	if (!this->out_file_name) {
+		const char* nameOfFile = "mer_Historam_Of_";
+		const char* outFileExension = ".csv";
+		const char* zScoreFiltered = "zScoreFiltered";
 		if (this->zThresholdEnable == 0) {
-			this->out_file = (char*) this->memMgr->allocate_array(
+			this->out_file_name = (char*) this->memMgr->allocate_array(
 					strlen("999") + strlen(nameOfFile)
-							+ strlen(this->sequence_file)
+							+ strlen(this->sequence_file_name)
 							+ strlen(outFileExension), sizeof(char));
-			sprintf(this->out_file, "%d%s%s%s", this->k, nameOfFile,
-					this->sequence_file, outFileExension);
+			sprintf(this->out_file_name, "%d%s%s%s", this->k, nameOfFile,
+					this->sequence_file_name, outFileExension);
 		} else {
-			this->out_file = (char*) this->memMgr->allocate_array(
+			this->out_file_name = (char*) this->memMgr->allocate_array(
 					strlen("999") + strlen(nameOfFile)
-							+ strlen(this->sequence_file)
+							+ strlen(this->sequence_file_name)
 							+ strlen(outFileExension) + strlen(zScoreFiltered),
 					sizeof(char));
-			sprintf(this->out_file, "%d%s%s%s%s", this->k, nameOfFile,
-					this->sequence_file, zScoreFiltered, outFileExension);
+			sprintf(this->out_file_name, "%d%s%s%s%s", this->k, nameOfFile,
+					this->sequence_file_name, zScoreFiltered, outFileExension);
 		}
 	}
 
+}
+
+//Getter
+int cmdline_parser::getK() const {
+	return k;
+}
+
+//Getter
+const FILE* cmdline_parser::getOutFilePointer() const {
+	return out_file_pointer;
+}
+
+//Getter
+const FILE* cmdline_parser::getSequenceFilePointer() const {
+	return sequence_file_pointer;
+}
+
+//Getter
+int cmdline_parser::getSuppressOutputEnable() const {
+	return suppressOutputEnable;
+}
+
+//Getter
+long double cmdline_parser::getThreshold() const {
+	return zThreshold;
+}
+//Getter
+const char* cmdline_parser::getSequenceFileName() const {
+	return sequence_file_name;
+}
+//Getter
+char* cmdline_parser::getOutFileName() const {
+	return out_file_name;
 }

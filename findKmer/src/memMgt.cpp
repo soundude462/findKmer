@@ -44,12 +44,13 @@
 #include "memMgt.h"
 
 memMgt::memMgt() {
-	// TODO Auto-generated constructor stub
 	TotalAllocatedBytes = 0;
 }
 
 memMgt::~memMgt() {
-	// TODO Auto-generated destructor stub
+	if(TotalAllocatedBytes != 0){
+		fprintf(stderr, "Memory Leak detected!");
+	}
 }
 
 void* memMgt::allocate_array(int size, size_t element_size) {
@@ -63,4 +64,22 @@ void* memMgt::allocate_array(int size, size_t element_size) {
 
 unsigned long int memMgt::getTotalAllocatedBytes() const {
 	return TotalAllocatedBytes;
+}
+
+/*
+ * returns 0 if successful. ... THIS code will probably not be able to see the number of bytes from a void pointer.
+ * need to have overloaded methods that accept different pointer types to know, or have an input argument for the sizeof thing...
+ */
+int memMgt::deallocate_array(void** array,int size, size_t element_size) {
+	int Return=0;
+	if ((*array)!=NULL) {
+		//TODO I am unsure of this, math with size_t may not be stable? unsure of size_t type/use...
+		this->TotalAllocatedBytes -= (size* element_size);
+		DEBUG(printf("Freeing %d bytes of memory",(size* element_size)))
+		free(*array);
+		*array = NULL;
+	}else{
+		Return = 1;
+	}
+	return Return;
 }

@@ -9,7 +9,7 @@ findKmer:
 	@echo 'Invoking: Cross G++'
 	g++ ./src/findKmer.cpp -o findKmer -O3 -w
 	@echo 'Finished building target: $@'
-	@echo ' '
+	@echo 'Goodbye from handwritten make file for findKmer:'
 
 # Other Targets
 clean:
