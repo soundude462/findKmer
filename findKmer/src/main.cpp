@@ -463,7 +463,7 @@ void statistics(unsigned long long * const baseCounter,
 			*baseCounter);
 
 	DEBUG(cout << (*TotalNumSequencesN) << " sequences of length k were found."<<endl<<" This is NOT the number of combinations found."
-			<< endl
+			<< endl;
 
 			cout << nodeCounter << " Nodes created " << endl;
 
@@ -1210,6 +1210,10 @@ int main(int argc, char *argv[]) {
 			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
 				/* Next arg. */
 				currentArgument++;}fprintf(stdout, "\n"););
+
+
+
+
 
 
 

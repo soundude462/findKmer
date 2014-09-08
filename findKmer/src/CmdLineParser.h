@@ -46,6 +46,10 @@
 #include "FindKmer.h"
 #include "MemMgt.h"
 
+/*
+ * This class is required to build the configuration struct from command line arguments.
+ * FindKmer will not work without this configuration unless you do it manually.
+ */
 class CmdLineParser {
 
 public:
@@ -79,7 +83,9 @@ public:
 	unsigned long int getTotalAllocatedBytes() const;
 	const char* getSequenceFileName() const;
 	char* getOutFileName() const;
-
+	int getConfiguration(configuration *config);
+	bool isValidConfiguration() const;
+	bool isConfigurationCopied() const;
 
 private:
 	const char *sequence_file_name_; //holds the string representation of the file name.
@@ -91,6 +97,8 @@ private:
 	long double zThreshold_; //holds the minimum Z score value to print to outfile
 	int zThresholdEnable_; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
 	memMgt * memMgr_;
+	bool validConfiguration_;
+	bool configurationCopied_;
 
 	void set_default_conf_();
 };

@@ -52,24 +52,27 @@ CmdLineParser::CmdLineParser() {
 	zThresholdEnable_ = -1;
 	zThreshold_ = -1;
 	memMgr_ = new memMgt();
+	configurationCopied_ = false;
+	validConfiguration_ = false;
 }
 
 CmdLineParser::~CmdLineParser() {
-	//free the file name strings.
-	delete (sequence_file_name_);
-	delete (out_file_name_);
-	//free(sequence_file);
-	//free(out_file);
+	if (configurationCopied_ == false) {
+		//free the file name strings.
+		delete (sequence_file_name_);
+		delete (out_file_name_);
+		//free(sequence_file);
+		//free(out_file);
 
-	//If we try to use fclose on a null pointer then the program crashes.
-	if (sequence_file_pointer_) {
-		fclose(sequence_file_pointer_);
+		//If we try to use fclose on a null pointer then the program crashes.
+		if (sequence_file_pointer_) {
+			fclose(sequence_file_pointer_);
+		}
+
+		if (out_file_pointer_) {
+			fclose(out_file_pointer_);
+		}
 	}
-
-	if (out_file_pointer_) {
-		fclose(out_file_pointer_);
-	}
-
 }
 
 void CmdLineParser::usage() {
@@ -95,6 +98,12 @@ void CmdLineParser::usage() {
 	fprintf(stdout, "\n");
 }
 
+/*
+ * Reads command line arguments.
+ * Only prints to std out if there is something missing or an error
+ * Does not fill in default or unknown values
+ * A call to this function should be followed by set default config or a future config checker.
+ */
 int CmdLineParser::parse_arguments(int argc, char** argv) {
 	int i = 1;
 	if (argc < 2) {
@@ -257,6 +266,7 @@ int CmdLineParser::getThresholdEnable() const {
 /* check that the given file can be read/written */
 void CmdLineParser::check_file(const char* filename, const char* mode) {
 	FILE *file = fopen(filename, mode);
+
 	if (file == NULL) {
 		fprintf(stderr,
 				"Unable to open file %s in %s mode\nFile MUST be in current directory.\n",
@@ -336,6 +346,40 @@ unsigned long int CmdLineParser::estimate_RAM_usage() {
 	return maxNumberOfNodes;
 }
 
+/*
+ * Once the configuration is copied, the destructor will no longer free memory or close the files.
+ * Configuration can only be copied after set_default_conf has been called (may be via print_conf.)
+ * Returns EXIT_SUCCESS on success
+ */
+int CmdLineParser::getConfiguration(configuration *config) {
+	if (validConfiguration_ == true) {
+		config->k = k_;
+		config->out_file_name = out_file_name_;
+		config->sequence_file_name = sequence_file_name_;
+		config->sequence_file_pointer = sequence_file_pointer_;
+		config->zThreshold = zThreshold_;
+		config->zThresholdEnable = zThresholdEnable_;
+		configurationCopied_ = true;
+		return EXIT_SUCCESS;
+	} else {
+		return EXIT_FAILURE;
+	}
+}
+
+bool CmdLineParser::isValidConfiguration() const {
+	return validConfiguration_;
+}
+
+bool CmdLineParser::isConfigurationCopied() const {
+	return configurationCopied_;
+}
+
+
+
+/*
+ * Sets anything that has not been set yet using the macros in the header file.
+ * This sets the configuration as valid.
+ */
 void CmdLineParser::set_default_conf_() {
 
 	if (!sequence_file_name_) {
@@ -364,7 +408,7 @@ void CmdLineParser::set_default_conf_() {
 	}
 
 	/*
-	 * strlen is used here incase of a change in the variables, increases flexiability.
+	 * strlen is used here incase of a change in the variables, increases flexibility.
 	 */
 	if (!out_file_name_) {
 		const char* nameOfFile = "mer_Historam_Of_";
@@ -375,19 +419,22 @@ void CmdLineParser::set_default_conf_() {
 
 		if (zThresholdEnable_ == 0) {
 
-			memMgr_->allocateArray(sizeof(char),stringLength,out_file_name_);
+			memMgr_->allocateArray(sizeof(char), stringLength, out_file_name_);
 
 			sprintf(out_file_name_, "%d%s%s%s", k_, nameOfFile,
 					sequence_file_name_, outFileExension);
 		} else {
 
-			memMgr_->allocateArray(sizeof(char),stringLength+ strlen(zScoreFiltered),out_file_name_);
+			memMgr_->allocateArray(sizeof(char),
+					stringLength + strlen(zScoreFiltered), out_file_name_);
 
 			sprintf(out_file_name_, "%d%s%s%s%s", k_, nameOfFile,
 					sequence_file_name_, zScoreFiltered, outFileExension);
 		}
 	}
 
+	//This verified that the configuration is finally valid.
+	validConfiguration_ = true;
 }
 
 //Getter

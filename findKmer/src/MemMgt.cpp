@@ -66,7 +66,7 @@ int memMgt::deallocateArray(void** array,int size, size_t element_size) {
 	if ((*array)!=NULL) {
 		//TODO I am unsure of this, math with size_t may not be stable? unsure of size_t type/use...
 		this->TotalAllocatedBytes -= (size* element_size);
-		DEBUG(printf("Freeing %d bytes of memory",(size* element_size)))
+		DEBUG(printf("Freeing %d bytes of memory",(size* element_size)));
 		free(*array);
 		*array = NULL;
 	}else{

@@ -54,17 +54,66 @@
 // Fixed bugs  : Verified that the tree is actually creating the correct number of nodes. # of nodes != 4^k; see estimate ram usage.
 // Compile     : g++  -o "findKmer" [-O3 seems to work OK but unknown benefit]
 //============================================================================
-
-
 //API creation header files.
 #include "FindKmer.h"
 #include "CmdLineParser.h" //header file for object oriented command line parser. use "" for local files.
 #include "MemMgt.h" //header file for memory management tracking total allocated/deallocated bytes.
 
-
 FindKmer::FindKmer() {
 	//can wait and only initialize and store pointers to new objects when they are needed...
+	initalizeConfiguration(&config_);
 }
 
+/*
+ * parses command line arguments and displays configuration to the user.
+ */
+FindKmer::FindKmer(int argc, char** argv) {
+	CmdLineParser *tempParser = new CmdLineParser();
+	tempParser->usage();
+	tempParser->parse_arguments(argc,argv);
+	tempParser->print_conf(argc);
+	tempParser->estimate_RAM_usage();
+	tempParser->getConfiguration(&config_);
+	delete tempParser;
+}
+
+
 FindKmer::~FindKmer() {
+	//free the file name strings.
+	if (config_.out_file_name != NULL) {
+
+		fprintf(stdout,
+				"Your file can be found in the current directory as: \n    %s\n",
+				config_.out_file_name);
+		delete (config_.out_file_name);
+	}
+	if (config_.sequence_file_name != NULL) {
+		delete (config_.sequence_file_name);
+	}
+	//free(sequence_file);
+	//free(out_file);
+
+	//If we try to use fclose on a null pointer then the program crashes.
+	if (config_.out_file_pointer) {
+		if (fclose(config_.out_file_pointer) == EOF) {
+			fprintf(stderr,
+					"Out file close error! This is not expected and might mean the data was not written to the file properly before the close.\n");
+		}
+	}
+
+	if (fclose(config_.sequence_file_pointer) == EOF) {
+		fprintf(stderr,
+				"Sequence file close error! This is likely ok though.\n");
+	}
+}
+
+const configuration& FindKmer::getConfig() const {
+	return config_;
+}
+
+/*
+ * TODO Requires Lots of error checking! leaving it for now.
+ */
+void FindKmer::setConfig(const configuration& config) {
+	config_ = config;
 }

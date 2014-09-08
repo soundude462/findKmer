@@ -90,7 +90,7 @@ using namespace std;
 #define COUNT_BASES_ONLY(x) x
 
 //debugging
-#define DEBUG(x) //x
+#define DEBUG(x) x
 #define DEBUG_TREE_CREATE(x) //x
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 #define DEBUG_SHIFT_AND_INSERT(x) //x
@@ -102,6 +102,44 @@ struct statistics_t {
 	unsigned int Count; //number of time this base was encountered in the entire file.
 	long double Probability; //probability that this base will be encountered out of all bases in the file.
 };
+
+struct configuration {
+	const char *sequence_file_name; //holds the string representation of the file name.
+	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
+	const char *out_file_name;		//holds the string representation of the file name.
+	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
+	int k; //holds the length of k for the size of the sequence to be recorded.
+	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
+	long double zThreshold; //holds the minimum Z score value to print to outfile
+	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
+};
+
+inline void initalizeConfiguration(configuration * config){
+	config->sequence_file_name = NULL;
+	config->sequence_file_pointer = NULL;
+	config->out_file_name = NULL;
+	config->out_file_pointer = NULL;
+	config->k = 0;
+	config->suppressOutputEnable = -1;
+	config->zThresholdEnable = -1;
+	config->zThreshold = -1;
+}
+/*
+ * returns EXIT_SUCCESS on success.
+ * Checks for NULL and checks for k range of 1 to 20.
+ * File pointers and names != NULL.
+ */
+inline int checkConfiguration(configuration * config){
+	if(config->sequence_file_name != NULL &&
+	config->sequence_file_pointer != NULL &&
+	config->out_file_name != NULL &&
+	config->out_file_pointer != NULL &&
+	config->k > 0 && config->k <= 20){
+		return EXIT_SUCCESS;
+	}else{
+		return EXIT_FAILURE;
+	}
+}
 
 /* Data structure for a tree.
  * http://msdn.microsoft.com/en-us/library/s3f49ktz.aspx
@@ -119,6 +157,7 @@ struct node_t {
 };
 
 //Not yet used: Extra functions taken from Dr. Becchi's stdinc.h file.
+//Inline functions are like, but safer than, macros.
 /* max and min */
 inline int max(int x, int y) { return x > y ? x : y; }
 inline double max(double x, double y) { return x > y ? x : y; }
@@ -126,15 +165,19 @@ inline int min(int x, int y) { return x < y ? x : y; }
 inline double min(double x, double y) { return x < y ? x : y; }
 
 /* warnings and errors */
-inline void warning(char* p) { fprintf(stderr,"Warning:%s \n",p); }
-inline void fatal(char* string) {fprintf(stderr,"Fatal:%s\n",string); exit(1); }
+inline void warning(const char* p) { fprintf(stderr,"Warning:%s \n",p); }
+inline void fatal(const char* string) {fprintf(stderr,"Fatal:%s\n",string); exit(EXIT_FAILURE); }
 
 class FindKmer {
 public:
 	FindKmer();
+	FindKmer(int argc, char **argv);
 	virtual ~FindKmer();
-private:
+	const configuration& getConfig() const;
+	void setConfig(const configuration& config);
 
+private:
+	configuration config_;
 };
 
 
