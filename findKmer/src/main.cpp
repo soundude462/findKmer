@@ -41,14 +41,14 @@
  * ============================================================================
  */
 
-#include "findKmer.h"
+#include "FindKmer.h"
 /* structure definition for configuration of file names, pointers, and length of k.
  * For enables: 0 == false, > 1 is true, < 1 means none supplied from user.
  */
 static struct conf {
 	const char *sequence_file_name; //holds the string representation of the file name.
 	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself.
-	char *out_file_name;		//holds the string representation of the file name.
+	char *out_file_name;	//holds the string representation of the file name.
 	FILE *out_file_pointer;  //holds the FILE pointer to the file itself.
 	int k; //holds the length of k for the size of the sequence to be recorded.
 	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
@@ -148,7 +148,7 @@ void *reallocate_array(void *array, int size, size_t element_size) {
 }
 void deallocate_array(void** array) {
 	free(*array);
-		*array = NULL;
+	*array = NULL;
 }
 //for testing purposes.
 void random_array(int sizeOfArray) {
@@ -243,7 +243,8 @@ void print_conf(int argc) {
 	fprintf(stdout, "\nATTEMPTING CONFIGURATION: \n");
 	set_default_conf();
 	if (config.sequence_file_name)
-		fprintf(stdout, "- sequence_file file: %s\n", config.sequence_file_name);
+		fprintf(stdout, "- sequence_file file: %s\n",
+				config.sequence_file_name);
 	if (config.out_file_name)
 		fprintf(stdout, "- export file: %s\n", config.out_file_name);
 	if (config.k)
@@ -425,7 +426,8 @@ void statistics(unsigned long long * const baseCounter,
 	const char* outFileExension = ".txt";
 
 	char* stats_out_file_name = (char*) allocate_array(
-			strlen("999") + strlen(nameOfFile) + strlen(config.sequence_file_name)
+			strlen("999") + strlen(nameOfFile)
+					+ strlen(config.sequence_file_name)
 					+ strlen(outFileExension), sizeof(char));
 
 	sprintf(stats_out_file_name, "%d%s%s%s", config.k, nameOfFile,
@@ -1207,7 +1209,9 @@ int main(int argc, char *argv[]) {
 	DEBUG(
 			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
 				/* Next arg. */
-				currentArgument++;}fprintf(stdout, "\n");)
+				currentArgument++;}fprintf(stdout, "\n"););
+
+
 
 	init_conf();
 	usage();
@@ -1285,5 +1289,4 @@ int main(int argc, char *argv[]) {
 //	}
 	return 0;
 }
-
 

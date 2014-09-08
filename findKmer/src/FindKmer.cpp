@@ -57,14 +57,14 @@
 
 
 //API creation header files.
-#include "findKmer.h"
-#include "cmdlineParser.h" //header file for object oriented command line parser. use "" for local files.
-#include "memMgt.h" //header file for memory management tracking total allocated/deallocated bytes.
+#include "FindKmer.h"
+#include "CmdLineParser.h" //header file for object oriented command line parser. use "" for local files.
+#include "MemMgt.h" //header file for memory management tracking total allocated/deallocated bytes.
 
 
-findKmer::findKmer() {
+FindKmer::FindKmer() {
 	//can wait and only initialize and store pointers to new objects when they are needed...
 }
 
-findKmer::~findKmer() {
+FindKmer::~FindKmer() {
 }

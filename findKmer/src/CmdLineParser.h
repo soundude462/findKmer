@@ -43,17 +43,17 @@
 
 #ifndef CMDLINEPARSER_H_
 #define CMDLINEPARSER_H_
-#include "findKmer.h"
-#include "memMgt.h"
+#include "FindKmer.h"
+#include "MemMgt.h"
 
-class cmdline_parser {
+class CmdLineParser {
 
 public:
 	//instantiates the parser
-	cmdline_parser();
+	CmdLineParser();
 
 	//parser de-allocator
-	~cmdline_parser();
+	~CmdLineParser();
 
 	//prints command line arguments that are available.
 	void usage();
@@ -80,37 +80,19 @@ public:
 	const char* getSequenceFileName() const;
 	char* getOutFileName() const;
 
-private:
-	const char *sequence_file_name; //holds the string representation of the file name.
-	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
-	char *out_file_name;		//holds the string representation of the file name.
-	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
-	int k; //holds the length of k for the size of the sequence to be recorded.
-	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
-	long double zThreshold; //holds the minimum Z score value to print to outfile
-	int zThresholdEnable; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
-	memMgt * memMgr;
 
-	void set_default_conf();
+private:
+	const char *sequence_file_name_; //holds the string representation of the file name.
+	FILE *sequence_file_pointer_; //holds the FILE pointer to the file itself
+	char *out_file_name_;		//holds the string representation of the file name.
+	FILE *out_file_pointer_;  //holds the FILE pointer to the file itself
+	int k_; //holds the length of k for the size of the sequence to be recorded.
+	int suppressOutputEnable_; //Suppress identifier printing and getchar(); breaks.
+	long double zThreshold_; //holds the minimum Z score value to print to outfile
+	int zThresholdEnable_; //The z threshold enable set to 1 OR GREATER causes outfile to only contain sequences with z score above z threshold.
+	memMgt * memMgr_;
+
+	void set_default_conf_();
 };
 
 #endif /* CMDLINEPARSER_H_ */
-
-////Getter
-//int getK() const;
-////Getter
-//const FILE* getOutFilePointer() const;
-////Getter
-//const FILE* getSequenceFilePointer() const;
-////Getter
-//int getSuppressOutputEnable() const;
-////Getter
-//long double getThreshold() const;
-////Getter
-//int getThresholdEnable() const;
-////Getter
-//unsigned long int getTotalAllocatedBytes() const;
-////Getter
-//const char* getSequenceFileName() const;
-////Getter
-//char* getOutFileName() const;

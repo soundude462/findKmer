@@ -43,15 +43,15 @@
 
 #ifndef MEMMGT_H_
 #define MEMMGT_H_
-#include "findKmer.h"
+#include "FindKmer.h"
 /*
  *
  */
 class memMgt {
 public:
 	memMgt();
-	void *allocate_array(int size, size_t element_size);
-	int deallocate_array(void ** array,int size, size_t element_size);
+	int allocateArray(size_t elementSize, int numberOfElements, void* destinationPointer);
+	int deallocateArray(void ** array,int size, size_t element_size);
 	virtual ~memMgt();
 	unsigned long int getTotalAllocatedBytes() const;
 private:

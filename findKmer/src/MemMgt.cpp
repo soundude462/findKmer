@@ -41,7 +41,7 @@
  * ============================================================================
  */
 
-#include "memMgt.h"
+#include "MemMgt.h"
 
 memMgt::memMgt() {
 	TotalAllocatedBytes = 0;
@@ -53,25 +53,16 @@ memMgt::~memMgt() {
 	}
 }
 
-void* memMgt::allocate_array(int size, size_t element_size) {
-	void *mem = malloc(size * element_size);
-	if (!mem) {
-		fprintf(stderr, "allocate_array():: memory allocation failed\n");
-		exit(EXIT_FAILURE);
-	}
-	return mem;
-}
-
 unsigned long int memMgt::getTotalAllocatedBytes() const {
 	return TotalAllocatedBytes;
 }
 
 /*
- * returns 0 if successful. ... THIS code will probably not be able to see the number of bytes from a void pointer.
+ * returns EXIT_SUCCESS if successful. ... THIS code will probably not be able to see the number of bytes from a void pointer.
  * need to have overloaded methods that accept different pointer types to know, or have an input argument for the sizeof thing...
  */
-int memMgt::deallocate_array(void** array,int size, size_t element_size) {
-	int Return=0;
+int memMgt::deallocateArray(void** array,int size, size_t element_size) {
+	int Return=EXIT_SUCCESS;
 	if ((*array)!=NULL) {
 		//TODO I am unsure of this, math with size_t may not be stable? unsure of size_t type/use...
 		this->TotalAllocatedBytes -= (size* element_size);
@@ -81,5 +72,19 @@ int memMgt::deallocate_array(void** array,int size, size_t element_size) {
 	}else{
 		Return = 1;
 	}
+	return Return;
+}
+
+/*
+ * returns EXIT_SUCCESS if successful
+ */
+int memMgt::allocateArray( size_t elementSize, int numberOfElements, void* destinationPointer) {
+	int Return = EXIT_SUCCESS;
+	destinationPointer = malloc(numberOfElements * elementSize);
+	if (!destinationPointer) {
+		fprintf(stderr, "allocate_array():: memory allocation failed\n");
+		exit(EXIT_FAILURE);
+	}
+	TotalAllocatedBytes += numberOfElements * elementSize;
 	return Return;
 }

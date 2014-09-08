@@ -129,10 +129,10 @@ inline double min(double x, double y) { return x < y ? x : y; }
 inline void warning(char* p) { fprintf(stderr,"Warning:%s \n",p); }
 inline void fatal(char* string) {fprintf(stderr,"Fatal:%s\n",string); exit(1); }
 
-class findKmer {
+class FindKmer {
 public:
-	findKmer();
-	virtual ~findKmer();
+	FindKmer();
+	virtual ~FindKmer();
 private:
 
 };

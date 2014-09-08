@@ -40,39 +40,39 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * ============================================================================
  */
-#include "cmdlineParser.h"
+#include "CmdLineParser.h"
 
-cmdline_parser::cmdline_parser() {
-	sequence_file_name = NULL;
-	sequence_file_pointer = NULL;
-	out_file_name = NULL;
-	out_file_pointer = NULL;
-	k = 0;
-	suppressOutputEnable = -1;
-	zThresholdEnable = -1;
-	zThreshold = -1;
-	memMgr = new memMgt();
+CmdLineParser::CmdLineParser() {
+	sequence_file_name_ = NULL;
+	sequence_file_pointer_ = NULL;
+	out_file_name_ = NULL;
+	out_file_pointer_ = NULL;
+	k_ = 0;
+	suppressOutputEnable_ = -1;
+	zThresholdEnable_ = -1;
+	zThreshold_ = -1;
+	memMgr_ = new memMgt();
 }
 
-cmdline_parser::~cmdline_parser() {
+CmdLineParser::~CmdLineParser() {
 	//free the file name strings.
-	delete (sequence_file_name);
-	delete (out_file_name);
+	delete (sequence_file_name_);
+	delete (out_file_name_);
 	//free(sequence_file);
 	//free(out_file);
 
 	//If we try to use fclose on a null pointer then the program crashes.
-	if (sequence_file_pointer) {
-		fclose(sequence_file_pointer);
+	if (sequence_file_pointer_) {
+		fclose(sequence_file_pointer_);
 	}
 
-	if (out_file_pointer) {
-		fclose(out_file_pointer);
+	if (out_file_pointer_) {
+		fclose(out_file_pointer_);
 	}
 
 }
 
-void cmdline_parser::usage() {
+void CmdLineParser::usage() {
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Usage: findKmer [options]\n");
 	fprintf(stdout,
@@ -95,7 +95,7 @@ void cmdline_parser::usage() {
 	fprintf(stdout, "\n");
 }
 
-int cmdline_parser::parse_arguments(int argc, char** argv) {
+int CmdLineParser::parse_arguments(int argc, char** argv) {
 	int i = 1;
 	if (argc < 2) {
 		return 1;
@@ -116,7 +116,7 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 				if (argv[i] != NULL) {
 					check_file(argv[i], "w");
 				}
-				this->out_file_name = argv[i];
+				out_file_name_ = argv[i];
 			} else if (strcmp(argv[i], "-p") == 0
 					|| strcmp(argv[i], "--parse") == 0) {
 				i++;
@@ -129,7 +129,7 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 					check_file(argv[i], "r");
 				}
 
-				this->sequence_file_name = argv[i];
+				sequence_file_name_ = argv[i];
 			} else if (strcmp(argv[i], "-k") == 0
 					|| strcmp(argv[i], "--ksize") == 0) {
 				i++;
@@ -145,7 +145,7 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 								k);
 						exit(EXIT_FAILURE);
 					}
-					this->k = k;
+					k_ = k;
 				}
 			} else if (strcmp(argv[i], "-q") == 0
 					|| strcmp(argv[i], "--quiet") == 0) {
@@ -159,7 +159,7 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 					int suppressOutputEnableOption = atoi(argv[i]);
 					if (suppressOutputEnableOption == 1
 							|| suppressOutputEnableOption == 0) {
-						this->suppressOutputEnable = suppressOutputEnableOption;
+						suppressOutputEnable_ = suppressOutputEnableOption;
 					} else {
 						fprintf(stderr,
 								"%d is not a valid value for suppress Output Enable Option.\nPlease select either 0 for FALSE or a 1 for TRUE",
@@ -175,12 +175,12 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 							"Z threshold number is missing\nUsage is \"-z 1000\".\n");
 					exit(EXIT_FAILURE);
 				} else {
-					this->zThresholdEnable = 1;
-					this->zThreshold = atoi(argv[i]);
+					zThresholdEnable_ = 1;
+					zThreshold_ = atoi(argv[i]);
 				}
 			} else {
 				fprintf(stderr, "Ignoring invalid option %s\n", argv[i]);
-				if (this->suppressOutputEnable == 0) {
+				if (suppressOutputEnable_ == 0) {
 					fprintf(stderr, "Press enter to continue.\n");
 					getchar();
 				}
@@ -192,53 +192,53 @@ int cmdline_parser::parse_arguments(int argc, char** argv) {
 	return 1;
 }
 
-void cmdline_parser::print_conf(int argc) {
+void CmdLineParser::print_conf(int argc) {
 	fprintf(stdout, "\nATTEMPTING CONFIGURATION: \n");
-	this->set_default_conf();
-	if (this->sequence_file_name)
-		fprintf(stdout, "- sequence_file file: %s\n", this->sequence_file_name);
-	if (this->out_file_name)
-		fprintf(stdout, "- export file: %s\n", this->out_file_name);
-	if (this->k)
-		fprintf(stdout, "- k size: %d\n", this->k);
+	set_default_conf_();
+	if (sequence_file_name_)
+		fprintf(stdout, "- sequence_file file: %s\n", sequence_file_name_);
+	if (out_file_name_)
+		fprintf(stdout, "- export file: %s\n", out_file_name_);
+	if (k_)
+		fprintf(stdout, "- k size: %d\n", k_);
 
 	fprintf(stdout, "- %s\n",
-			this->suppressOutputEnable > 0 ?
+			suppressOutputEnable_ > 0 ?
 					"Suppressing file read output and breaks." :
 					"Showing DNA Sequence identifier and allowing breaks.");
 
 	fprintf(stdout, "- Z score filtering is %s",
-			this->zThresholdEnable ? "enabled" : "disabled");
+			zThresholdEnable_ ? "enabled" : "disabled");
 
-	if (this->zThresholdEnable > 0) {
-		fprintf(stdout, "\n    with threshold of %LG", this->zThreshold);
+	if (zThresholdEnable_ > 0) {
+		fprintf(stdout, "\n    with threshold of %LG", zThreshold_);
 	}
 	fprintf(stdout, ".\n");
 
 	//if suppressOutputEnable is false and no command line arguments have been given:
-	if (this->suppressOutputEnable == 0 && argc < 2) {
+	if (suppressOutputEnable_ == 0 && argc < 2) {
 		fprintf(stdout, "Press enter to proceed with this configuration.");
 		getchar();
 	}
 
 	/* Double check configuration */
-	if (this->k < 0 || this->k > 20) {
+	if (k_ < 0 || k_ > 20) {
 		fprintf(stderr,
 				"%d is not a valid value for k. Please select a number greater than zero\n",
-				this->k);
+				k_);
 		exit(EXIT_FAILURE);
 	}
 
-	if ((this->sequence_file_pointer = fopen(this->sequence_file_name, "r")) != NULL) {
+	if ((sequence_file_pointer_ = fopen(sequence_file_name_, "r")) != NULL) {
 		//fprintf(stdout, "Sequence file opened properly\n");
 	} else {
 		fprintf(stderr, "Sequence file failed to open\n\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if ((this->out_file_pointer = fopen(this->out_file_name, "w")) != NULL) {
+	if ((out_file_pointer_ = fopen(out_file_name_, "w")) != NULL) {
 		//fprintf(stdout, "Out file opened properly\n");
-		fprintf(this->out_file_pointer, OUT_FILE_COLUMN_HEADERS);
+		fprintf(out_file_pointer_, OUT_FILE_COLUMN_HEADERS);
 	} else {
 		fprintf(stderr,
 				"Out file failed to open\nFile MUST be in current directory.\n");
@@ -250,12 +250,12 @@ void cmdline_parser::print_conf(int argc) {
 	fprintf(stdout, "\n");
 }
 
-int cmdline_parser::getThresholdEnable() const {
-	return zThresholdEnable;
+int CmdLineParser::getThresholdEnable() const {
+	return zThresholdEnable_;
 }
 
 /* check that the given file can be read/written */
-void cmdline_parser::check_file(const char* filename, const char* mode) {
+void CmdLineParser::check_file(const char* filename, const char* mode) {
 	FILE *file = fopen(filename, mode);
 	if (file == NULL) {
 		fprintf(stderr,
@@ -266,11 +266,11 @@ void cmdline_parser::check_file(const char* filename, const char* mode) {
 		fclose(file);
 }
 
-unsigned long int cmdline_parser::getTotalAllocatedBytes() const {
+unsigned long int CmdLineParser::getTotalAllocatedBytes() const {
 	return getTotalAllocatedBytes();
 }
 
-unsigned long int cmdline_parser::estimate_RAM_usage() {
+unsigned long int CmdLineParser::estimate_RAM_usage() {
 	if (sizeof(int) < 4 || sizeof(long int) < 8 || sizeof(long long int) < 8) {
 		cout
 				<< "The normal size of bits is less than expected when this program was written."
@@ -293,7 +293,7 @@ unsigned long int cmdline_parser::estimate_RAM_usage() {
 		printf("sizeof(node_t*) = %lu\n", sizeof(node_t*));
 		cout << "Press enter to continue or you can abort the program now."
 				<< endl;
-		if (this->getSuppressOutputEnable() == 0) {
+		if (getSuppressOutputEnable() == 0) {
 			getchar();
 		}
 	}
@@ -301,17 +301,17 @@ unsigned long int cmdline_parser::estimate_RAM_usage() {
 	//add one for the head node. Calculate RAM usage and Harddrive usage.
 	unsigned long int maxNumberOfNodes = 1;
 	double n = 1;
-	while (n <= this->getK()) {
+	while (n <= getK()) {
 		maxNumberOfNodes += pow(4.0, n++);
 	}
-	if (((sizeof(char) * (this->getK() + 10)) * maxNumberOfNodes)
+	if (((sizeof(char) * (getK() + 10)) * maxNumberOfNodes)
 			>= (1024 * 1024 * 1024)) {
 		cout
-				<< ((sizeof(char) * (this->getK() + 10)) * maxNumberOfNodes)
+				<< ((sizeof(char) * (getK() + 10)) * maxNumberOfNodes)
 						/ (double) (1024 * 1024 * 1024) << " gibibytes";
 	} else {
 		cout
-				<< ((sizeof(char) * (this->getK() + 10)) * maxNumberOfNodes)
+				<< ((sizeof(char) * (getK() + 10)) * maxNumberOfNodes)
 						/ (double) (1024 * 1024) << " mibibytes";
 	}
 
@@ -325,7 +325,7 @@ unsigned long int cmdline_parser::estimate_RAM_usage() {
 		;
 		cout << "We are stopping here to make sure that is ok with you!"
 				<< endl;
-		if (this->getSuppressOutputEnable() == 0) {
+		if (getSuppressOutputEnable() == 0) {
 			cout << "Hit enter to proceed or else abort the program." << endl;
 			getchar();
 		}
@@ -336,86 +336,89 @@ unsigned long int cmdline_parser::estimate_RAM_usage() {
 	return maxNumberOfNodes;
 }
 
-void cmdline_parser::set_default_conf() {
+void CmdLineParser::set_default_conf_() {
 
-	if (!this->sequence_file_name) {
+	if (!sequence_file_name_) {
 		//here we transfer the string literal properly.
 		const char* tempFileName = DEFAULT_SEQUENCE_FILE_NAME;
-		this->sequence_file_name = tempFileName;
+		sequence_file_name_ = tempFileName;
 	}
 
-	if (!this->k) {
-		this->k = DEFAULT_K_VALUE;
+	if (!k_) {
+		k_ = DEFAULT_K_VALUE;
 	}
 
 	//double check default and user defined K value.
-	if (!this->k) {
+	if (!k_) {
 		fprintf(stdout, "k must be greater than zero. Ending program.\n\n");
 		exit(EXIT_FAILURE);
 	}
 	//if lessthan zero, then the user did not specify.
-	if (this->suppressOutputEnable < 0) {
-		this->suppressOutputEnable = DEFAULT_SUPPRESS_OUTPUT_VALUE;
+	if (suppressOutputEnable_ < 0) {
+		suppressOutputEnable_ = DEFAULT_SUPPRESS_OUTPUT_VALUE;
 	}
 
-	if (this->zThresholdEnable < 0) {
-		this->zThresholdEnable = DEFAULT_Z_THRESHOLD_ENABLE;
-		this->zThreshold = DEFAULT_Z_THRESHOLD;
+	if (zThresholdEnable_ < 0) {
+		zThresholdEnable_ = DEFAULT_Z_THRESHOLD_ENABLE;
+		zThreshold_ = DEFAULT_Z_THRESHOLD;
 	}
 
-	if (!this->out_file_name) {
+	/*
+	 * strlen is used here incase of a change in the variables, increases flexiability.
+	 */
+	if (!out_file_name_) {
 		const char* nameOfFile = "mer_Historam_Of_";
 		const char* outFileExension = ".csv";
 		const char* zScoreFiltered = "zScoreFiltered";
-		if (this->zThresholdEnable == 0) {
-			this->out_file_name = (char*) this->memMgr->allocate_array(
-					strlen("999") + strlen(nameOfFile)
-							+ strlen(this->sequence_file_name)
-							+ strlen(outFileExension), sizeof(char));
-			sprintf(this->out_file_name, "%d%s%s%s", this->k, nameOfFile,
-					this->sequence_file_name, outFileExension);
+		int stringLength = strlen("999") + strlen(nameOfFile)
+				+ strlen(sequence_file_name_) + strlen(outFileExension);
+
+		if (zThresholdEnable_ == 0) {
+
+			memMgr_->allocateArray(sizeof(char),stringLength,out_file_name_);
+
+			sprintf(out_file_name_, "%d%s%s%s", k_, nameOfFile,
+					sequence_file_name_, outFileExension);
 		} else {
-			this->out_file_name = (char*) this->memMgr->allocate_array(
-					strlen("999") + strlen(nameOfFile)
-							+ strlen(this->sequence_file_name)
-							+ strlen(outFileExension) + strlen(zScoreFiltered),
-					sizeof(char));
-			sprintf(this->out_file_name, "%d%s%s%s%s", this->k, nameOfFile,
-					this->sequence_file_name, zScoreFiltered, outFileExension);
+
+			memMgr_->allocateArray(sizeof(char),stringLength+ strlen(zScoreFiltered),out_file_name_);
+
+			sprintf(out_file_name_, "%d%s%s%s%s", k_, nameOfFile,
+					sequence_file_name_, zScoreFiltered, outFileExension);
 		}
 	}
 
 }
 
 //Getter
-int cmdline_parser::getK() const {
-	return k;
+int CmdLineParser::getK() const {
+	return k_;
 }
 
 //Getter
-const FILE* cmdline_parser::getOutFilePointer() const {
-	return out_file_pointer;
+const FILE* CmdLineParser::getOutFilePointer() const {
+	return out_file_pointer_;
 }
 
 //Getter
-const FILE* cmdline_parser::getSequenceFilePointer() const {
-	return sequence_file_pointer;
+const FILE* CmdLineParser::getSequenceFilePointer() const {
+	return sequence_file_pointer_;
 }
 
 //Getter
-int cmdline_parser::getSuppressOutputEnable() const {
-	return suppressOutputEnable;
+int CmdLineParser::getSuppressOutputEnable() const {
+	return suppressOutputEnable_;
 }
 
 //Getter
-long double cmdline_parser::getThreshold() const {
-	return zThreshold;
+long double CmdLineParser::getThreshold() const {
+	return zThreshold_;
 }
 //Getter
-const char* cmdline_parser::getSequenceFileName() const {
-	return sequence_file_name;
+const char* CmdLineParser::getSequenceFileName() const {
+	return sequence_file_name_;
 }
 //Getter
-char* cmdline_parser::getOutFileName() const {
-	return out_file_name;
+char* CmdLineParser::getOutFileName() const {
+	return out_file_name_;
 }
