@@ -40,6 +40,13 @@ homo_sapiensupstream.fas
 /*.csv
 /*.txt
 /*.fa
+/*.dat
+/*.ps
+/*.avi
+/*.gif
+/*.mp4
+/*.mpg
+/*.jpg
 /Release/
 /shortend_test_Homo_sapiens_1_and_2.fa
 /shortend_test_Homo_sapiens_1_and_2.fa~
@@ -53,3 +60,8 @@ homo_sapiensupstream.fas
 /top.sh~
 /5mer_Base_Stats_Of_homo_sapiensupstream.fas_.txt
 /kmerMonitor.sh~
+/findKmerprof
+/get_upstreams.pl~
+/gmon.out
+*~
+README.txt~
