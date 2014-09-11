@@ -201,6 +201,9 @@ int CmdLineParser::parse_arguments(int argc, char** argv) {
 	return 1;
 }
 
+/*
+ * prints the configuration of the object.
+ */
 void CmdLineParser::print_conf(int argc) {
 	fprintf(stdout, "\nATTEMPTING CONFIGURATION: \n");
 	set_default_conf_();

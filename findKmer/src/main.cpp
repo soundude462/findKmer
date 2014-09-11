@@ -1203,6 +1203,8 @@ unsigned long int estimate_RAM_usage() {
 	}
 	return maxNumberOfNodes;
 }
+
+#include "CmdLineParser.h"
 int main(int argc, char *argv[]) {
 
 	/* Deal with command line arguments */
@@ -1211,7 +1213,15 @@ int main(int argc, char *argv[]) {
 				/* Next arg. */
 				currentArgument++;}fprintf(stdout, "\n"););
 
-
+	configuration *config_=NULL;
+	CmdLineParser *tempParser = new CmdLineParser();
+	tempParser->usage();
+	tempParser->parse_arguments(argc,argv);
+	tempParser->print_conf(argc);
+	tempParser->estimate_RAM_usage();
+	tempParser->getConfiguration(config_);
+	delete tempParser;
+	return 1;
 
 
 
