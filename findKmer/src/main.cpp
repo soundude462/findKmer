@@ -113,20 +113,20 @@ long double float_n_choose_k(int n, unsigned int k) {
 	return (fretval);
 
 }
+/*
+ * This is a test to see if we can do the normal approximation test or not.
+ * The mean must be greater than or equal to five
+ * N*Q must be greater than or equal to five
+ */
 bool normal_approx_check(unsigned long long n, long double p, long double q) {
 	bool pass = true;
 
-	if (n * p >= 5) {
+	if ((n * p >= 5) && (n * q >= 5)) {
 		pass = true;
 	} else {
 		pass = false;
 	}
 
-	if (n * q >= 5) {
-		pass = true;
-	} else {
-		pass = false;
-	}
 	return pass;
 }
 void *allocate_array(int size, size_t element_size) {
@@ -302,23 +302,29 @@ void print_conf(int argc) {
 static void usage() {
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Usage: findKmer [options]\n");
-	fprintf(stdout,
-			"             [--parse|-p <sequence_file.txt>] \n               File with DNA sequence data.\n               File must be in current directory.\n                Default is %s.\n\n",
-			DEFAULT_SEQUENCE_FILE_NAME);
-	fprintf(stdout,
-			"             [--export|-e  <out_file.csv>] \n               File to output histogram data to.\n                Default output file name is dynamic.\n\n");
-	fprintf(stdout,
-			"             [--ksize|-k  <k>] \n               Size of sequence for histogram.\n                Default is %d.\n\n",
-			DEFAULT_K_VALUE);
-	fprintf(stdout,
-			"             [--quiet|-q  < 0 for FALSE | 1 for TRUE >] \n               Suppress file read output and breaks.\n                Default is %s.\n\n",
-			DEFAULT_SUPPRESS_OUTPUT_VALUE ? "true" : "false");
+	fprintf(stdout, "             [--parse|-p <sequence_file.txt>] \n"
+			"               File with DNA sequence data.\n"
+			"               File must be in current directory.\n"
+			"               Parser follows .fas and .fa formats\n"
+			"                Default is %s.\n\n",
+	DEFAULT_SEQUENCE_FILE_NAME);
+	fprintf(stdout, "             [--export|-e  <out_file.csv>] \n"
+			"               File to output histogram data to.\n"
+			"                Default output file name is dynamic.\n\n");
+	fprintf(stdout, "             [--ksize|-k  <k>] \n"
+			"               Size of sequence for histogram.\n"
+			"                Default is %d.\n\n",
+	DEFAULT_K_VALUE);
+	fprintf(stdout, "             [--quiet|-q  < 0 for FALSE | 1 for TRUE >] \n"
+			"               Suppress file read output and breaks.\n"
+			"                Default is %s.\n\n",
+	DEFAULT_SUPPRESS_OUTPUT_VALUE ? "true" : "false");
 
 	long double tempzThreshold = DEFAULT_Z_THRESHOLD;
-	fprintf(stdout,
-			"             [--zthreshold|-z  < Threshold_for_Z >] \n               Suppress sequences with Z scores < threshold.\n                Default is %s with a value of %LG.\n\n",
-			DEFAULT_Z_THRESHOLD_ENABLE ? "enabled" : "disabled",
-			tempzThreshold);
+	fprintf(stdout, "             [--zthreshold|-z  < Threshold_for_Z >] \n"
+			"               Suppress sequences with Z scores < threshold.\n"
+			"                Default is %s with a value of %LG.\n\n",
+	DEFAULT_Z_THRESHOLD_ENABLE ? "enabled" : "disabled", tempzThreshold);
 	fprintf(stdout, "\n");
 }
 int parse_arguments(int argc, char **argv) {
@@ -462,8 +468,8 @@ void statistics(unsigned long long * const baseCounter,
 	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
 			*baseCounter);
 
-	DEBUG(cout << (*TotalNumSequencesN) << " sequences of length k were found."<<endl<<" This is NOT the number of combinations found."
-			<< endl;
+	DEBUG(
+			cout << (*TotalNumSequencesN) << " sequences of length k were found."<<endl<<" This is NOT the number of combinations found." << endl;
 
 			cout << nodeCounter << " Nodes created " << endl;
 
@@ -471,9 +477,21 @@ void statistics(unsigned long long * const baseCounter,
 
 	fprintf(stdout, "%0.0f%% tree density.\n",
 			((double) (nodeCounter) / (double) (*maxNumberOfNodes)) * 100);
-
-	COUNT_BASES_ONLY(
-			if (nodeCounter == (*maxNumberOfNodes)) { fprintf(stats_out_file_pointer, "All possible %dmers combinations were found.\n",config.k); fprintf(stdout, "All possible kmer combinations were found.\n"); } else if (nodeCounter > (*maxNumberOfNodes)) { fprintf(stderr, "Error! too many nodes were created!\nThere may be a corruption of data!\n"); fprintf(stats_out_file_pointer, "too many nodes were created when looking for %dmers.\n",config.k); } else { fprintf(stdout, "FYI we did not find all possible combinations.\n"); fprintf(stats_out_file_pointer, "did not find all possible %dmers combinations.\n",config.k); });
+	if (nodeCounter == (*maxNumberOfNodes)) {
+		fprintf(stats_out_file_pointer,
+				"All possible %dmers combinations were found.\n", config.k);
+		fprintf(stdout, "All possible kmer combinations were found.\n");
+	} else if (nodeCounter > (*maxNumberOfNodes)) {
+		fprintf(stderr,
+				"Error! too many nodes were created!\nThere may be a corruption of data!\n");
+		fprintf(stats_out_file_pointer,
+				"too many nodes were created when looking for %dmers.\n",
+				config.k);
+	} else {
+		fprintf(stdout, "FYI we did not find all possible combinations.\n");
+		fprintf(stats_out_file_pointer,
+				"did not find all possible %dmers combinations.\n", config.k);
+	};
 
 	free(stats_out_file_name);
 	fclose(stats_out_file_pointer);
@@ -528,7 +546,6 @@ char int2base(int integer) {
  *
  */
 node_t* node_create(int base) {
-	//TODO encapsulate with memMgt class to track this creation
 	node_t* node = (node_t*) malloc(sizeof(node_t));
 	node->base = base;
 	node->frequency = 1;
@@ -642,7 +659,7 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 					baseCounter, baseStatistics, TotalNumSequencesN);
 		}
 
-		//once we have exhausted all branches and free'd them, we check for depth of k.
+		//once we have exhausted all branches, we check for depth of k.
 		if (depth == (k)) {
 			statistics_t kmerBaseStatistics[4] = { 0 }; //This will hold data that is only for this single Kmer and not for the entire file.
 
@@ -759,54 +776,53 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 					<< " = q, " << standardDev << " = standardDev, "
 					<< mean << " = mean, " << z << " = z" << endl);
 
-			//There is a test to see if we can do the normal approximation test or not.
-			bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
-			if (canDoNormalApprox == true) {
-				//http://www.cplusplus.com/reference/cstdio/printf/ was using %Le
-				//if the threshold is not enabled OR (if the threshold is enabled and our z score is a minimum the Z threshold.)
-				DEBUG_STATISTICS(
-						cout << config.zThresholdEnable
-						<< " config.zThresholdEnable, " << z << " = z, "
-						<< config.zThreshold << " = config.zThreshold"
-						<< endl);
+			/*
+			 * If there is no z filtering
+			 * Or if z filtering is enabled and the z score of this sequence is above it
+			 * Then we can print the data to the file
+			 *
+			 */
+			if (config.zThresholdEnable == 0
+					|| ((config.zThresholdEnable > 0)
+							&& (normal_approx_check(n, p, 1 - p) == true)
+							&& (abs(z) >= config.zThreshold))) {
 
-				/*
-				 * If there is no z filtering
-				 * Or if z filtering is enabled and the z score of this sequence is above it
-				 * Then we can print the data to the file
-				 *
-				 */
-				if (config.zThresholdEnable == 0
-						|| ((config.zThresholdEnable > 0)
-								&& (z >= config.zThreshold))) {
+				//write the information to the file.
+				//start a new line.
+				fputc('\n', config.out_file_pointer);
 
-					//write the information to the file.
-					//start a new line.
-					fputc('\n', config.out_file_pointer);
+				//print out the sequence that we found.
+				for (int i = 0; i < k; i++) {
+					fputc(int2base(array[i]), config.out_file_pointer);
+				}
 
-					//print out the sequence that we found.
-					for (int i = 0; i < k; i++) {
-						fputc(int2base(array[i]), config.out_file_pointer);
-					}
+				// print out the number of bits to encode a single symbol in the sequence.
+				fprintf(config.out_file_pointer, ", %LE", h);
 
-					// print out the number of bits to encode a single symbol in the sequence.
-					fprintf(config.out_file_pointer, ", %LE", h);
+				// print out the number of bits to encode the entire sequence.
+				fprintf(config.out_file_pointer, ", %LE", H);
 
-					// print out the number of bits to encode the entire sequence.
-					fprintf(config.out_file_pointer, ", %LE", H);
+				//print out the number of times that we saw the sequence.
+				fprintf(config.out_file_pointer, ", %d", head->frequency);
 
-					//print out the number of times that we saw the sequence.
-					fprintf(config.out_file_pointer, ", %d", head->frequency);
+				//There is a test to see if we can do the normal approximation test or not.
+				bool canDoNormalApprox = normal_approx_check(n, p, 1 - p);
+				if (canDoNormalApprox == true) {
+					//http://www.cplusplus.com/reference/cstdio/printf/ was using %Le
+					//if the threshold is not enabled OR (if the threshold is enabled and our z score is a minimum the Z threshold.)
+					DEBUG_STATISTICS(
+							cout << config.zThresholdEnable
+							<< " config.zThresholdEnable, " << z << " = z, "
+							<< config.zThreshold << " = config.zThreshold"
+							<< endl);
 
 					//print out the Z score value if it is greater than or equal to the threshold.
 					fprintf(config.out_file_pointer, ", %LE", z);
+				}DEBUG_STATISTICS( else {fprintf(stdout,
+									"The sequence did not pass the normal approximation test and was not written to the file.\n");});
 
-					// print higher precision, but the length of long double is undefined and in our experiments, we don't have any duplicate Z scores.
-					//fprintf(config.out_file_pointer, ", %.10LE", z);
-				}
-			} else {
-				fprintf(stderr,
-						"FYI A sequence was below Z threshold and was not written to the file.\n");
+				// print higher precision, but the length of long double is undefined and in our experiments, we don't have any duplicate Z scores.
+				//fprintf(config.out_file_pointer, ", %.10LE", z);
 			}
 
 			//OLD STUFF to verify that our procedure is working step by step.
@@ -950,9 +966,8 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 				 */
 				if (seqSize > config.k) {
 
-					COUNT_BASES_ONLY(
-							headNode = tree_create(headNode, kmer, config.k,
-									baseStatistics));
+					headNode = tree_create(headNode, kmer, config.k,
+							baseStatistics);
 
 					(*baseCounter)++;
 					baseStatistics[codedBase].Count++;
@@ -961,9 +976,9 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 				} else if (seqSize == config.k) {
 
 					//this case will occur less often than seqSize > config.k
-					COUNT_BASES_ONLY(
-							headNode = tree_create(headNode, kmer, config.k,
-									baseStatistics));
+
+					headNode = tree_create(headNode, kmer, config.k,
+							baseStatistics);
 
 					for (int i = 0; i < config.k; i++) {
 						baseStatistics[kmer[i]].Count++;
@@ -1213,19 +1228,17 @@ int main(int argc, char *argv[]) {
 				/* Next arg. */
 				currentArgument++;}fprintf(stdout, "\n"););
 
-	configuration *config_=NULL;
-	CmdLineParser *tempParser = new CmdLineParser();
-	tempParser->usage();
-	tempParser->parse_arguments(argc,argv);
-	tempParser->print_conf(argc);
-	tempParser->estimate_RAM_usage();
-	tempParser->getConfiguration(config_);
-	delete tempParser;
-	return 1;
-
-
-
-
+	/**
+	 configuration *config_=NULL;
+	 CmdLineParser *tempParser = new CmdLineParser();
+	 tempParser->usage();
+	 tempParser->parse_arguments(argc,argv);
+	 tempParser->print_conf(argc);
+	 tempParser->estimate_RAM_usage();
+	 tempParser->getConfiguration(config_);
+	 delete tempParser;
+	 return 1;
+	 /**/
 
 	init_conf();
 	usage();
@@ -1253,11 +1266,11 @@ int main(int argc, char *argv[]) {
 	statistics(&baseCounter, baseStatistics, &TotalNumSequencesN,
 			&maxNumberOfNodes);
 
-	COUNT_BASES_ONLY(fprintf(stdout, "Now creating histogram.\n"));
+	fprintf(stdout, "Now creating histogram.\n");
 
 	//create a temporary array for the recursive function to keep as scratch memory to hold the sequence.
 	//int* histogram_temp = (int*) allocate_array(config.k, sizeof(int));
-	//TODO encapsulate with memMgt class to track this creation
+
 	int* histogram_temp = (int*) malloc(config.k * sizeof(int));
 	if (!histogram_temp) {
 		fprintf(stderr, "allocate_array():: memory allocation failed\n");
@@ -1268,18 +1281,19 @@ int main(int argc, char *argv[]) {
 		*(histogram_temp + i) = -1;
 	}
 
-	/* print out the occurrence of every sequence of length k */
-	COUNT_BASES_ONLY(
-			histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
-					baseStatistics, &TotalNumSequencesN));
+	/* Output the occurrence of every sequence of length k */
 
-	//TODO free the histogram_temp array...This kept throwing errors on me.
+	histo_recursive(headNode, histogram_temp, 0, config.k, &baseCounter,
+			baseStatistics, &TotalNumSequencesN);
+
+	//Begin cleanup and closing of files.
 	free(histogram_temp);
-	//TODO  not working!
+	histogram_temp = NULL;
+
 	destroy(headNode);
 
 	DEBUG(fprintf(stdout, "\n"));
-	COUNT_BASES_ONLY(fprintf(stdout, "histogram creation finished.\n"));
+	fprintf(stdout, "histogram creation finished.\n");
 
 	if (fclose(config.out_file_pointer) == EOF) {
 		fprintf(stderr,
@@ -1294,7 +1308,11 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr,
 				"Sequence file close error! This is likely ok though.\n");
 	}
-
+	//Do not put any code after this point.
+	//Since the sequence file name is a constant char pointer, we cannot use free according to the standard since we cannot set it to null later.
+	//This will be fixed in the destructor of the config object later.
+	free((char *) config.sequence_file_name);
+	free(config.out_file_name);
 	fprintf(stdout, "End of program was reached properly.\n\n");
 	fprintf(stderr, " "); //simply to trigger error to notify the eclipse that we are done.
 //

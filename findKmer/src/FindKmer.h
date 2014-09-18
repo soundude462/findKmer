@@ -83,14 +83,8 @@ using namespace std;
  */
 #define OUT_FILE_COLUMN_HEADERS "Sequence, Shannon Entropy h, Shannon Entropy H, Frequency, Z score"
 
-/*
- * Commenting out the last x will NOT make the tree in memory and will NOT create a valid histogram.
- * It is only to save memory and count base occurrences.
- */
-#define COUNT_BASES_ONLY(x) x
-
 //debugging
-#define DEBUG(x) x
+#define DEBUG(x) //x
 #define DEBUG_TREE_CREATE(x) //x
 #define DEBUG_HISTO_AND_FREE_RECURSIVE(x) //x
 #define DEBUG_SHIFT_AND_INSERT(x) //x
@@ -106,7 +100,7 @@ struct statistics_t {
 struct configuration {
 	const char *sequence_file_name; //holds the string representation of the file name.
 	FILE *sequence_file_pointer; //holds the FILE pointer to the file itself
-	const char *out_file_name;		//holds the string representation of the file name.
+	char *out_file_name;		//holds the string representation of the file name.
 	FILE *out_file_pointer;  //holds the FILE pointer to the file itself
 	int k; //holds the length of k for the size of the sequence to be recorded.
 	int suppressOutputEnable; //Suppress identifier printing and getchar(); breaks.
