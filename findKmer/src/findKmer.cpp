@@ -230,7 +230,7 @@ void random_array(int sizeOfArray) {
 	deallocate_array((void**) &array);
 }
 /* check that the given file can be read/written */
-void check_file(char *filename, char *mode) {
+void check_file(const char *filename, const char *mode) {
 	FILE *file = fopen(filename, mode);
 	if (file == NULL) {
 		fprintf(stderr,
