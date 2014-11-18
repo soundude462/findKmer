@@ -45,8 +45,8 @@
 //                 All valid bases are in upper case (A, C, T or G) not lower case.
 //                 Sequences are broken by any character other than '\n', A, C, T or G
 //                 '>' designates the beginning of an ID and newlines ('\n') designates the end of an ID
-//                 Newlines ('\n') are otherwise ignored completely
-//                 No kmer sequence will contain the letter N at any position, thus it breaks a sequence
+//                 '\n' Newlines are otherwise ignored completely
+//                 'N' No kmer sequence will contain the letter N at any position, thus it breaks a sequence
 // Bugs        : Known bugs include memory leaks.
 // TODO        : Passing by value actually is worse than pass by reference for single elements of some types, weed out that case (esp 64 bit sys = 64 bit pointer)
 // TODO        : A choice could be made in development to either minimize storage of tree in memory by having different nodes for branch and leaf,
@@ -531,8 +531,8 @@ void statistics(unsigned long long * const baseCounter,
 	fprintf(stdout, "Found %llu valid bases total INSIDE sequences >= k.\n",
 			*baseCounter);
 
-	DEBUG(cout << (*TotalNumSequencesN) << " sequences of length k were found."<<endl<<" This is NOT the number of combinations found."
-			<< endl
+	DEBUG(
+			cout << (*TotalNumSequencesN) << " sequences of length k were found."<<endl<<" This is NOT the number of combinations found." << endl;
 
 			cout << nodeCounter << " Nodes created " << endl;
 
@@ -677,7 +677,7 @@ node_t* tree_create(node_t* head, int* const array, int k,
 		 */
 		for (int i = 0; i < k; i++) {
 			DEBUG_TREE_CREATE(
-					fprintf(stdout, "-Moving into a branch on depth %d\n", i););
+					fprintf(stdout, "-Moving into a branch on depth %d\n", i);getchar(););
 			currentNode = node_branch_enter_and_create(currentNode, array[i]);
 
 		}
@@ -750,7 +750,8 @@ void histo_recursive(node_t* const head, int * const array, const int depth,
 				kmerBaseStatistics[array[location]].Count++; //increment the counter for this letter
 
 				DEBUG(fprintf(stdout, "%c", int2base(array[location])));
-			}DEBUG(fprintf(stdout, ", %d\n", head->frequency));
+			}
+			DEBUG(fprintf(stdout, ", %d\n", head->frequency));
 
 			/*
 			 * Calculate Shannon Entropy to determine if a sequence contains information. it could be estimated
@@ -1018,6 +1019,9 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 			if (codedBase < 0) {
 				//any character in the file that is not a newline or a > or preceded by a > will break the sequence
 				seqSize = 0;
+				for (i = 0; i < config.k; i++) {
+					kmer[i] = -2;
+				}
 			} else {
 
 				/* Store the coded base into the kmer to be read later. */
@@ -1052,6 +1056,10 @@ node_t * findKmer(node_t * headNode, unsigned long long * const baseCounter,
 					(*baseCounter) += seqSize;
 					(*TotalNumSequencesN)++;
 				} //end detection of a kmer of length k or greater.
+				else //This section will catch cases where seqSize are explicitly less than k.
+				{
+					headNode = tree_create(headNode, kmer+(config.k-seqSize), seqSize, baseStatistics);
+				}
 
 			} //end end of sequence detection.
 		} //end ignore newline character
@@ -1286,8 +1294,8 @@ int main(int argc, char *argv[]) {
 	/* Deal with command line arguments */
 	DEBUG(
 			int currentArgument =0; while(currentArgument < argc) {fprintf(stdout, "argv[%d]== %s\n",currentArgument, *(argv+currentArgument)); /* %s instead of %c and drop [i]. */
-				/* Next arg. */
-				currentArgument++;}fprintf(stdout, "\n");)
+			/* Next arg. */
+			currentArgument++;}fprintf(stdout, "\n");)
 
 	init_conf();
 	usage();
